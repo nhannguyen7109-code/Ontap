@@ -218,7 +218,8 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
   const [shortAnswerText, setShortAnswerText] = useState('');
 
-  // Form thêm câu hỏi
+  // Form thêm/sửa câu hỏi
+  const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
   const [newQ, setNewQ] = useState({
     subject: 'Tin học', grade: '3', text: '', type: 'multiple_choice', lesson: '',
     opt0: '', opt1: '', opt2: '', opt3: '', correctIndex: '0', shortAnswerText: ''
@@ -406,20 +407,21 @@ export default function App() {
     }, 1500); // Tăng thời gian chờ lên 1.5s để học sinh kịp đọc thông báo
   };
 
-  // --- LOGIC THÊM CÂU HỎI ---
-  const handleAddQuestion = (e: React.FormEvent) => {
+  // --- LOGIC THÊM/SỬA CÂU HỎI ---
+  const handleSaveQuestion = (e: React.FormEvent) => {
     e.preventDefault();
-    let questionToAdd: Question;
+    let questionToSave: Question;
 
     if (newQ.type === 'short_answer') {
       if (!newQ.text || !newQ.shortAnswerText) {
         alert("Vui lòng điền đầy đủ câu hỏi và đáp án!");
         return;
       }
-      questionToAdd = {
-        id: Date.now(),
+      questionToSave = {
+        id: editingQuestionId || Date.now(),
         subject: newQ.subject,
         grade: newQ.grade,
+        lesson: newQ.lesson || undefined,
         text: newQ.text,
         type: 'short_answer',
         shortAnswers: newQ.shortAnswerText.split(',').map(s => s.trim()).filter(s => s)
@@ -429,10 +431,11 @@ export default function App() {
         alert("Vui lòng điền đầy đủ câu hỏi và 4 đáp án!");
         return;
       }
-      questionToAdd = {
-        id: Date.now(),
+      questionToSave = {
+        id: editingQuestionId || Date.now(),
         subject: newQ.subject,
         grade: newQ.grade,
+        lesson: newQ.lesson || undefined,
         text: newQ.text,
         type: 'multiple_choice',
         options: [newQ.opt0, newQ.opt1, newQ.opt2, newQ.opt3],
@@ -440,14 +443,38 @@ export default function App() {
       };
     }
     
-    setQuestions([...questions, questionToAdd]);
-    alert("Thêm câu hỏi thành công!");
-    setNewQ({ ...newQ, text: '', opt0: '', opt1: '', opt2: '', opt3: '', correctIndex: '0', shortAnswerText: '' });
-    
-    // Refresh danh sách nếu đang ở đúng môn và khối
-    if (student && currentSubject === newQ.subject && student.grade === newQ.grade) {
-       loadQuestionsFor(currentSubject, student.grade, [...questions, questionToAdd]);
+    if (editingQuestionId) {
+      setQuestions(questions.map(q => q.id === editingQuestionId ? questionToSave : q));
+      alert("Cập nhật câu hỏi thành công!");
+    } else {
+      setQuestions([...questions, questionToSave]);
+      alert("Thêm câu hỏi thành công!");
     }
+
+    setEditingQuestionId(null);
+    setNewQ({ ...newQ, text: '', opt0: '', opt1: '', opt2: '', opt3: '', correctIndex: '0', shortAnswerText: '' });
+  };
+
+  const handleEditQuestion = (q: Question) => {
+    setEditingQuestionId(q.id);
+    setNewQ({
+      subject: q.subject,
+      grade: q.grade,
+      text: q.text,
+      type: q.type || 'multiple_choice',
+      lesson: q.lesson || '',
+      opt0: q.options?.[0] || '',
+      opt1: q.options?.[1] || '',
+      opt2: q.options?.[2] || '',
+      opt3: q.options?.[3] || '',
+      correctIndex: String(q.correctIndex || 0),
+      shortAnswerText: q.shortAnswers?.join(', ') || ''
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingQuestionId(null);
+    setNewQ({ ...newQ, text: '', opt0: '', opt1: '', opt2: '', opt3: '', correctIndex: '0', shortAnswerText: '' });
   };
 
   // ================= RENDER =================
@@ -734,19 +761,40 @@ export default function App() {
                                  <div className="p-2 border-t border-gray-100 bg-gray-50/50 space-y-2 max-h-[40vh] overflow-y-auto">
                                    {qsForSubject.length === 0 ? (
                                       <p className="text-[10px] text-gray-400 italic text-center py-2">Chưa có câu hỏi</p>
-                                   ) : qsForSubject.map((q, idx) => (
-                                     <div key={idx} className="bg-white p-2 rounded-lg shadow-sm border border-gray-100 group/item">
-                                       <p className="text-gray-800 text-[11px] font-medium line-clamp-2" title={q.text}>{q.text}</p>
-                                       <div className="flex items-center justify-between mt-1.5">
-                                         <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded w-fit truncate max-w-[100px]" title={q.lesson || 'Ôn tập chung'}>
-                                           {q.lesson || 'Ôn tập chung'}
-                                         </span>
-                                         <span className="text-[9px] font-bold text-gray-400">
-                                           {q.type === 'short_answer' ? 'Ngắn' : 'TN'}
-                                         </span>
-                                       </div>
-                                     </div>
-                                   ))}
+                                   ) : (
+                                     Array.from(new Set(qsForSubject.map(q => q.lesson || 'Ôn tập chung'))).map(lesson => {
+                                       const qsForLesson = qsForSubject.filter(q => (q.lesson || 'Ôn tập chung') === lesson);
+                                       return (
+                                         <details key={lesson} className="group/lesson border border-gray-100 rounded-lg overflow-hidden bg-white shadow-sm">
+                                            <summary className="cursor-pointer p-2 text-xs font-semibold text-gray-600 flex items-center justify-between hover:bg-gray-50 transition-colors select-none list-none [&::-webkit-details-marker]:hidden">
+                                              <div className="flex items-center gap-1.5 truncate pr-2">
+                                                 <div className="w-3 h-3 flex items-center justify-center text-gray-400 group-open/lesson:rotate-90 transition-transform flex-shrink-0">
+                                                    <ChevronLeft size={10} className="rotate-180" />
+                                                 </div>
+                                                 <span className="truncate">{lesson}</span>
+                                              </div>
+                                              <span className="text-[9px] bg-gray-100 px-1.5 py-0.5 rounded-md text-gray-500 flex-shrink-0">{qsForLesson.length}</span>
+                                            </summary>
+                                            <div className="p-2 border-t border-gray-50 bg-gray-50/50 space-y-1.5">
+                                              {qsForLesson.map((q, idx) => (
+                                                <div 
+                                                  key={idx} 
+                                                  onClick={() => handleEditQuestion(q)}
+                                                  className={`p-2 rounded shadow-sm border cursor-pointer transition-colors ${editingQuestionId === q.id ? 'bg-purple-100 border-purple-300' : 'bg-white border-gray-100 hover:bg-purple-50 hover:border-purple-200'}`}
+                                                >
+                                                  <p className="text-gray-800 text-[11px] font-medium line-clamp-2" title={q.text}>{q.text}</p>
+                                                  <div className="mt-1 flex justify-end items-center gap-1">
+                                                    <span className="text-[9px] font-bold text-gray-400">
+                                                      {q.type === 'short_answer' ? 'Ngắn' : 'TN'}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                         </details>
+                                       )
+                                     })
+                                   )}
                                  </div>
                                </details>
                              );
@@ -1207,10 +1255,15 @@ export default function App() {
             </h1>
 
             <div className="bg-white p-8 rounded-3xl shadow-xl border-t-8 border-purple-500">
-              <h2 className="text-2xl font-black text-gray-800 mb-6 flex items-center gap-2">
-                <PlusCircle className="text-purple-600" /> Thêm Câu Hỏi Mới
+              <h2 className="text-2xl font-black text-gray-800 mb-6 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <PlusCircle className="text-purple-600" /> {editingQuestionId ? 'Sửa Câu Hỏi' : 'Thêm Câu Hỏi Mới'}
+                </span>
+                {editingQuestionId && (
+                  <button onClick={cancelEdit} className="text-sm bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg font-bold hover:bg-gray-200 transition-colors">Hủy sửa</button>
+                )}
               </h2>
-              <form onSubmit={handleAddQuestion} className="space-y-6">
+              <form onSubmit={handleSaveQuestion} className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">Loại câu hỏi</label>
@@ -1311,7 +1364,7 @@ export default function App() {
                     type="submit"
                     className="w-full py-4 mt-6 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-bold text-xl shadow-lg transform hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
                   >
-                    <CheckCircle size={24} /> Lưu Câu Hỏi Này
+                    <CheckCircle size={24} /> {editingQuestionId ? 'Cập Nhật Câu Hỏi' : 'Lưu Câu Hỏi Này'}
                   </button>
                 </form>
               </div>

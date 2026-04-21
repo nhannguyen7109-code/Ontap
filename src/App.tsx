@@ -134,6 +134,10 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 
 export default function App() {
   const [student, setStudent] = useState<Student | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loginMode, setLoginMode] = useState<'student' | 'admin'>('student');
+  const [adminPassword, setAdminPassword] = useState('');
+  
   const [activeTab, setActiveTab] = useState('select-subject'); // 'select-subject', 'select-lesson', 'quiz', 'admin', 'history', 'leaderboard'
   const [currentSubject, setCurrentSubject] = useState('Tin học');
   const [currentLesson, setCurrentLesson] = useState<string | null>(null);
@@ -188,6 +192,23 @@ export default function App() {
   });
 
   // --- XỬ LÝ ĐĂNG NHẬP ---
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminPassword === 'admin123') { // Mật khẩu quản trị mặc định
+      setIsAdmin(true);
+      setActiveTab('admin');
+      setLoginError('');
+      AudioEngine.init();
+      // Bắt đầu nhạc nền nhẹ
+      if (audioRef.current) {
+        audioRef.current.volume = 0.1;
+        audioRef.current.play().then(() => setIsBgmPlaying(true)).catch(() => setIsBgmPlaying(false));
+      }
+    } else {
+      setLoginError('Mật khẩu không đúng! Vui lòng thử lại.');
+    }
+  };
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const pName = loginForm.name.trim();
@@ -389,7 +410,7 @@ export default function App() {
   };
 
   // ================= RENDER =================
-  if (!student) {
+  if (!student && !isAdmin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-300 via-purple-300 to-pink-300 flex items-center justify-center p-4 font-sans">
         <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md text-center border-4 border-white transform transition-all hover:scale-105 duration-300">
@@ -407,48 +428,82 @@ export default function App() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4 text-left">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Tên của em:</label>
-              <input 
-                type="text" 
-                value={loginForm.name}
-                onChange={e => setLoginForm({...loginForm, name: e.target.value})}
-                className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-200 outline-none transition-all text-lg"
-                placeholder="Ví dụ: Nam Anh"
-              />
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-bold text-gray-700 mb-1">Lớp:</label>
+          {loginMode === 'student' ? (
+            <form onSubmit={handleLogin} className="space-y-4 text-left">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Tên của em:</label>
                 <input 
                   type="text" 
-                  value={loginForm.className}
-                  onChange={e => setLoginForm({...loginForm, className: e.target.value})}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 outline-none text-lg"
-                  placeholder="Ví dụ: 3A"
+                  value={loginForm.name}
+                  onChange={e => setLoginForm({...loginForm, name: e.target.value})}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-200 outline-none transition-all text-lg"
+                  placeholder="Ví dụ: Nam Anh"
                 />
               </div>
-              <div className="flex-1">
-                <label className="block text-sm font-bold text-gray-700 mb-1">Khối:</label>
-                <select 
-                  value={loginForm.grade}
-                  onChange={e => setLoginForm({...loginForm, grade: e.target.value})}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 outline-none text-lg font-bold text-blue-600 bg-white"
-                >
-                  <option value="3">Khối 3</option>
-                  <option value="4">Khối 4</option>
-                  <option value="5">Khối 5</option>
-                </select>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Lớp:</label>
+                  <input 
+                    type="text" 
+                    value={loginForm.className}
+                    onChange={e => setLoginForm({...loginForm, className: e.target.value})}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 outline-none text-lg"
+                    placeholder="Ví dụ: 3A"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Khối:</label>
+                  <select 
+                    value={loginForm.grade}
+                    onChange={e => setLoginForm({...loginForm, grade: e.target.value})}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 outline-none text-lg font-bold text-blue-600 bg-white"
+                  >
+                    <option value="3">Khối 3</option>
+                    <option value="4">Khối 4</option>
+                    <option value="5">Khối 5</option>
+                  </select>
+                </div>
               </div>
-            </div>
+              <button 
+                type="submit"
+                className="w-full py-4 mt-4 bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white rounded-2xl font-bold text-xl shadow-lg transform hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
+              >
+                <Play fill="currentColor" /> Vào Học Ngay!
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleAdminLogin} className="space-y-4 text-left">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Mật khẩu quản trị:</label>
+                <input 
+                  type="password" 
+                  value={adminPassword}
+                  onChange={e => setAdminPassword(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-200 outline-none transition-all text-lg"
+                  placeholder="Nhập mật khẩu..."
+                />
+                <p className="text-xs text-gray-500 mt-1">Mật khẩu mẫu: admin123</p>
+              </div>
+              <button 
+                type="submit"
+                className="w-full py-4 mt-4 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white rounded-2xl font-bold text-xl shadow-lg transform hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
+              >
+                <User fill="currentColor" /> Đăng Nhập Quản Trị
+              </button>
+            </form>
+          )}
+
+          <div className="mt-6 text-center">
             <button 
-              type="submit"
-              className="w-full py-4 mt-4 bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white rounded-2xl font-bold text-xl shadow-lg transform hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
+              onClick={() => {
+                setLoginMode(loginMode === 'student' ? 'admin' : 'student');
+                setLoginError('');
+              }}
+              className="text-gray-500 hover:text-blue-600 font-bold underline transition-colors"
             >
-              <Play fill="currentColor" /> Vào Học Ngay!
+              {loginMode === 'student' ? 'Đăng nhập Quản trị viên' : 'Quay lại đăng nhập Học sinh'}
             </button>
-          </form>
+          </div>
         </div>
       </div>
     );
@@ -472,133 +527,188 @@ export default function App() {
       />
 
       {/* --- SIDEBAR TRÁI --- */}
-      <div className="w-full md:w-72 md:h-screen sticky top-0 bg-white shadow-xl flex flex-col z-20 border-r border-gray-100 flex-shrink-0">
-        <div className="p-4 md:p-6 bg-gradient-to-b from-blue-500 to-blue-600 text-white md:rounded-br-3xl flex justify-between items-center md:items-start md:flex-col">
-          <div className="flex items-center gap-3 mb-0 md:mb-2">
-            <div className="bg-white/20 p-2 rounded-full hidden sm:block md:block">
-              <User size={24} />
+      {isAdmin ? (
+        <div className="w-full md:w-72 md:h-screen sticky top-0 bg-white shadow-xl flex flex-col z-20 border-r border-gray-100 flex-shrink-0">
+          <div className="p-4 md:p-6 bg-gradient-to-b from-purple-500 to-indigo-600 text-white md:rounded-br-3xl flex justify-between items-center md:items-start md:flex-col">
+            <div className="flex items-center gap-3 mb-0 md:mb-2">
+              <div className="bg-white/20 p-2 rounded-full hidden sm:block md:block">
+                <User size={24} />
+              </div>
+              <div>
+                <h2 className="text-lg md:text-xl font-bold">Quản Trị Viên</h2>
+                <p className="text-purple-100 text-xs md:text-sm">Trang Quản Lý</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg md:text-xl font-bold">{student.name}</h2>
-              <p className="text-blue-100 text-xs md:text-sm">Lớp {student.className} - Khối {student.grade}</p>
+            {/* Nút tác vụ cho Mobile */}
+            <div className="flex md:hidden gap-2">
+              <button onClick={toggleBgm} className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors">
+                {isBgmPlaying ? <Volume2 size={20}/> : <VolumeX size={20}/>}
+              </button>
+              <button onClick={() => window.location.reload()} className="p-2 bg-red-400/80 rounded-full hover:bg-red-500 transition-colors">
+                <LogOut size={20}/>
+              </button>
             </div>
           </div>
-          
-          {/* Nút tác vụ cho Mobile */}
-          <div className="flex md:hidden gap-2">
-            <button onClick={toggleBgm} className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors">
-              {isBgmPlaying ? <Volume2 size={20}/> : <VolumeX size={20}/>}
-            </button>
-            <button onClick={() => window.location.reload()} className="p-2 bg-red-400/80 rounded-full hover:bg-red-500 transition-colors">
-              <LogOut size={20}/>
-            </button>
-          </div>
-        </div>
 
-        <div 
-          className="p-2 md:p-4 flex-none md:flex-1 flex flex-row md:flex-col gap-2 mt-0 md:mt-4 overflow-x-auto whitespace-nowrap items-center md:items-stretch [&::-webkit-scrollbar]:hidden"
-          style={{ scrollbarWidth: 'none' }}
-        >
-          <p className="hidden md:block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">Học Tập</p>
-          
-          <button 
-            disabled={activeTab === 'select-subject'}
-            onClick={() => { setActiveTab('select-lesson'); setCurrentSubject('Tin học'); }}
-            className={`flex items-center justify-center md:justify-start gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl font-bold transition-all flex-shrink-0 ${
-              activeTab === 'select-subject' ? 'opacity-50 cursor-not-allowed grayscale' :
-              activeTab === 'quiz' && currentSubject === 'Tin học' 
-              ? 'bg-blue-100 text-blue-700 shadow-sm border-2 border-blue-200' 
-              : 'text-gray-600 hover:bg-gray-50 border-2 border-transparent'
-            }`}
+          <div 
+            className="p-2 md:p-4 flex-none md:flex-1 flex flex-row md:flex-col gap-2 mt-0 md:mt-4 overflow-x-auto whitespace-nowrap items-center md:items-stretch [&::-webkit-scrollbar]:hidden"
+            style={{ scrollbarWidth: 'none' }}
           >
-            <Monitor size={20} className={activeTab === 'quiz' && currentSubject === 'Tin học' ? 'text-blue-600' : 'text-gray-400'} />
-            <span className="text-sm md:text-base">Môn Tin Học</span>
-          </button>
-
-          <button 
-            disabled={activeTab === 'select-subject'}
-            onClick={() => { setActiveTab('select-lesson'); setCurrentSubject('Công nghệ'); }}
-            className={`flex items-center justify-center md:justify-start gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl font-bold transition-all flex-shrink-0 ${
-              activeTab === 'select-subject' ? 'opacity-50 cursor-not-allowed grayscale' :
-              activeTab === 'quiz' && currentSubject === 'Công nghệ' 
-              ? 'bg-green-100 text-green-700 shadow-sm border-2 border-green-200' 
-              : 'text-gray-600 hover:bg-gray-50 border-2 border-transparent'
-            }`}
-          >
-            <Cpu size={20} className={activeTab === 'quiz' && currentSubject === 'Công nghệ' ? 'text-green-600' : 'text-gray-400'} />
-            <span className="text-sm md:text-base">Môn Công Nghệ</span>
-          </button>
-
-          <div className="hidden md:block h-px bg-gray-200 my-4"></div>
-          
-          <p className="hidden md:block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">Thành Tích</p>
-          <button 
-            disabled={activeTab === 'select-subject'}
-            onClick={() => { setActiveTab('history'); }}
-            className={`flex items-center justify-center md:justify-start gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl font-bold transition-all flex-shrink-0 ${
-              activeTab === 'select-subject' ? 'opacity-50 cursor-not-allowed grayscale' :
-              activeTab === 'history' 
-              ? 'bg-orange-100 text-orange-700 shadow-sm border-2 border-orange-200' 
-              : 'text-gray-600 hover:bg-gray-50 border-2 border-transparent'
-            }`}
-          >
-            <HistoryIcon size={20} className={activeTab === 'history' ? 'text-orange-600' : 'text-gray-400'} />
-            <span className="text-sm md:text-base">Lịch Sử Thi</span>
-          </button>
-          <button 
-            disabled={activeTab === 'select-subject'}
-            onClick={() => { setActiveTab('leaderboard'); }}
-            className={`flex items-center justify-center md:justify-start gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl font-bold transition-all flex-shrink-0 ${
-              activeTab === 'select-subject' ? 'opacity-50 cursor-not-allowed grayscale' :
-              activeTab === 'leaderboard' 
-              ? 'bg-yellow-100 text-yellow-700 shadow-sm border-2 border-yellow-200' 
-              : 'text-gray-600 hover:bg-gray-50 border-2 border-transparent'
-            }`}
-          >
-            <Award size={20} className={activeTab === 'leaderboard' ? 'text-yellow-600' : 'text-gray-400'} />
-            <span className="text-sm md:text-base">Bảng Xếp Hạng</span>
-          </button>
-
-          <div className="hidden md:block h-px bg-gray-200 my-4"></div>
-          
-          <p className="hidden md:block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">Giáo Viên / Phụ Huynh</p>
-          <button 
-            onClick={() => { setActiveTab('admin'); }}
-            className={`flex items-center justify-center md:justify-start gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl font-bold transition-all flex-shrink-0 ${
-              activeTab === 'admin' 
-              ? 'bg-purple-100 text-purple-700 shadow-sm border-2 border-purple-200' 
-              : 'text-gray-600 hover:bg-gray-50 border-2 border-transparent'
-            }`}
-          >
-            <PlusCircle size={20} className={activeTab === 'admin' ? 'text-purple-600' : 'text-gray-400'} />
-            <span className="text-sm md:text-base">Quản Lý Câu Hỏi</span>
-          </button>
-        </div>
-
-        <div className="hidden md:flex p-4 border-t border-gray-100 gap-2 mt-auto">
-           <button 
-              onClick={toggleBgm}
-              className="flex-1 flex items-center justify-center gap-2 p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors font-semibold text-sm"
+            <p className="hidden md:block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">Bảng Quản Trị</p>
+            
+            <button 
+              onClick={() => { setActiveTab('history'); }}
+              className={`flex items-center justify-center md:justify-start gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl font-bold transition-all flex-shrink-0 ${
+                activeTab === 'history' 
+                ? 'bg-orange-100 text-orange-700 shadow-sm border-2 border-orange-200' 
+                : 'text-gray-600 hover:bg-gray-50 border-2 border-transparent'
+              }`}
             >
-              {isBgmPlaying ? <Volume2 size={18}/> : <VolumeX size={18}/>} Nhạc
+              <HistoryIcon size={20} className={activeTab === 'history' ? 'text-orange-600' : 'text-gray-400'} />
+              <span className="text-sm md:text-base">Quản Lý Học Sinh</span>
             </button>
             <button 
-              onClick={() => { window.location.reload(); }}
-              className="flex-1 flex items-center justify-center gap-2 p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors font-semibold text-sm"
+              onClick={() => { setActiveTab('admin'); }}
+              className={`flex items-center justify-center md:justify-start gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl font-bold transition-all flex-shrink-0 ${
+                activeTab === 'admin' 
+                ? 'bg-purple-100 text-purple-700 shadow-sm border-2 border-purple-200' 
+                : 'text-gray-600 hover:bg-gray-50 border-2 border-transparent'
+              }`}
             >
-              <LogOut size={18}/> Thoát
+              <PlusCircle size={20} className={activeTab === 'admin' ? 'text-purple-600' : 'text-gray-400'} />
+              <span className="text-sm md:text-base">Quản Lý Câu Hỏi</span>
             </button>
+          </div>
+
+          <div className="hidden md:flex p-4 border-t border-gray-100 gap-2 mt-auto">
+             <button 
+                onClick={toggleBgm}
+                className="flex-1 flex items-center justify-center gap-2 p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors font-semibold text-sm"
+              >
+                {isBgmPlaying ? <Volume2 size={18}/> : <VolumeX size={18}/>} Nhạc
+              </button>
+              <button 
+                onClick={() => { window.location.reload(); }}
+                className="flex-1 flex items-center justify-center gap-2 p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors font-semibold text-sm"
+              >
+                <LogOut size={18}/> Thoát
+              </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="w-full md:w-72 md:h-screen sticky top-0 bg-white shadow-xl flex flex-col z-20 border-r border-gray-100 flex-shrink-0">
+          <div className="p-4 md:p-6 bg-gradient-to-b from-blue-500 to-blue-600 text-white md:rounded-br-3xl flex justify-between items-center md:items-start md:flex-col">
+            <div className="flex items-center gap-3 mb-0 md:mb-2">
+              <div className="bg-white/20 p-2 rounded-full hidden sm:block md:block">
+                <User size={24} />
+              </div>
+              <div>
+                <h2 className="text-lg md:text-xl font-bold">{student?.name}</h2>
+                <p className="text-blue-100 text-xs md:text-sm">Lớp {student?.className} - Khối {student?.grade}</p>
+              </div>
+            </div>
+            
+            {/* Nút tác vụ cho Mobile */}
+            <div className="flex md:hidden gap-2">
+              <button onClick={toggleBgm} className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors">
+                {isBgmPlaying ? <Volume2 size={20}/> : <VolumeX size={20}/>}
+              </button>
+              <button onClick={() => window.location.reload()} className="p-2 bg-red-400/80 rounded-full hover:bg-red-500 transition-colors">
+                <LogOut size={20}/>
+              </button>
+            </div>
+          </div>
+
+          <div 
+            className="p-2 md:p-4 flex-none md:flex-1 flex flex-row md:flex-col gap-2 mt-0 md:mt-4 overflow-x-auto whitespace-nowrap items-center md:items-stretch [&::-webkit-scrollbar]:hidden"
+            style={{ scrollbarWidth: 'none' }}
+          >
+            <p className="hidden md:block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">Học Tập</p>
+            
+            <button 
+              disabled={activeTab === 'select-subject'}
+              onClick={() => { setActiveTab('select-lesson'); setCurrentSubject('Tin học'); }}
+              className={`flex items-center justify-center md:justify-start gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl font-bold transition-all flex-shrink-0 ${
+                activeTab === 'select-subject' ? 'opacity-50 cursor-not-allowed grayscale' :
+                activeTab === 'quiz' && currentSubject === 'Tin học' 
+                ? 'bg-blue-100 text-blue-700 shadow-sm border-2 border-blue-200' 
+                : 'text-gray-600 hover:bg-gray-50 border-2 border-transparent'
+              }`}
+            >
+              <Monitor size={20} className={activeTab === 'quiz' && currentSubject === 'Tin học' ? 'text-blue-600' : 'text-gray-400'} />
+              <span className="text-sm md:text-base">Môn Tin Học</span>
+            </button>
+
+            <button 
+              disabled={activeTab === 'select-subject'}
+              onClick={() => { setActiveTab('select-lesson'); setCurrentSubject('Công nghệ'); }}
+              className={`flex items-center justify-center md:justify-start gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl font-bold transition-all flex-shrink-0 ${
+                activeTab === 'select-subject' ? 'opacity-50 cursor-not-allowed grayscale' :
+                activeTab === 'quiz' && currentSubject === 'Công nghệ' 
+                ? 'bg-green-100 text-green-700 shadow-sm border-2 border-green-200' 
+                : 'text-gray-600 hover:bg-gray-50 border-2 border-transparent'
+              }`}
+            >
+              <Cpu size={20} className={activeTab === 'quiz' && currentSubject === 'Công nghệ' ? 'text-green-600' : 'text-gray-400'} />
+              <span className="text-sm md:text-base">Môn Công Nghệ</span>
+            </button>
+
+            <div className="hidden md:block h-px bg-gray-200 my-4"></div>
+            
+            <p className="hidden md:block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">Thành Tích</p>
+            <button 
+              disabled={activeTab === 'select-subject'}
+              onClick={() => { setActiveTab('history'); }}
+              className={`flex items-center justify-center md:justify-start gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl font-bold transition-all flex-shrink-0 ${
+                activeTab === 'select-subject' ? 'opacity-50 cursor-not-allowed grayscale' :
+                activeTab === 'history' 
+                ? 'bg-orange-100 text-orange-700 shadow-sm border-2 border-orange-200' 
+                : 'text-gray-600 hover:bg-gray-50 border-2 border-transparent'
+              }`}
+            >
+              <HistoryIcon size={20} className={activeTab === 'history' ? 'text-orange-600' : 'text-gray-400'} />
+              <span className="text-sm md:text-base">Lịch Sử Thi</span>
+            </button>
+            <button 
+              disabled={activeTab === 'select-subject'}
+              onClick={() => { setActiveTab('leaderboard'); }}
+              className={`flex items-center justify-center md:justify-start gap-2 md:gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl font-bold transition-all flex-shrink-0 ${
+                activeTab === 'select-subject' ? 'opacity-50 cursor-not-allowed grayscale' :
+                activeTab === 'leaderboard' 
+                ? 'bg-yellow-100 text-yellow-700 shadow-sm border-2 border-yellow-200' 
+                : 'text-gray-600 hover:bg-gray-50 border-2 border-transparent'
+              }`}
+            >
+              <Award size={20} className={activeTab === 'leaderboard' ? 'text-yellow-600' : 'text-gray-400'} />
+              <span className="text-sm md:text-base">Bảng Xếp Hạng</span>
+            </button>
+          </div>
+
+          <div className="hidden md:flex p-4 border-t border-gray-100 gap-2 mt-auto">
+             <button 
+                onClick={toggleBgm}
+                className="flex-1 flex items-center justify-center gap-2 p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors font-semibold text-sm"
+              >
+                {isBgmPlaying ? <Volume2 size={18}/> : <VolumeX size={18}/>} Nhạc
+              </button>
+              <button 
+                onClick={() => { window.location.reload(); }}
+                className="flex-1 flex items-center justify-center gap-2 p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors font-semibold text-sm"
+              >
+                <LogOut size={18}/> Thoát
+              </button>
+          </div>
+        </div>
+      )}
 
       {/* --- MAIN CONTENT --- */}
       <div className="flex-1 p-4 md:p-8 overflow-y-auto relative">
         
         {/* VIEW: CHỌN MÔN HỌC */}
-        {activeTab === 'select-subject' && (
+        {activeTab === 'select-subject' && !isAdmin && (
           <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center transform transition-all duration-500">
             <h1 className="text-4xl md:text-5xl font-extrabold text-blue-600 mb-6 drop-shadow-sm">
-              Chào {student.name}! Em muốn ôn tập môn nào?
+              Chào {student?.name}! Em muốn ôn tập môn nào?
             </h1>
             <p className="text-xl text-gray-500 mb-12 font-medium">Hãy nhấp vào một môn học dưới đây để bắt đầu nhé.</p>
             
@@ -1047,7 +1157,7 @@ export default function App() {
         )}
 
         {/* VIEW: BẢNG XẾP HẠNG */}
-        {activeTab === 'leaderboard' && (
+        {activeTab === 'leaderboard' && !isAdmin && (
           <div className="max-w-4xl mx-auto">
             <h1 className="text-3xl font-extrabold text-yellow-600 flex items-center gap-3 mb-8">
               <Award size={36}/> Bảng Xếp Hạng - Khối {student?.grade}

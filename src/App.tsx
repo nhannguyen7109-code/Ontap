@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { 
   Play, BookOpen, Monitor, Cpu, PlusCircle, Shuffle, 
   CheckCircle, XCircle, Volume2, VolumeX, Trophy, User, LogOut,
-  History as HistoryIcon, Award, BookText, ChevronLeft
+  History as HistoryIcon, Award, BookText, ChevronLeft,
+  Star, Rocket, Smile, Sparkles, Cloud
 } from 'lucide-react';
+import { motion } from 'motion/react';
 
 import { LESSONS_DATA } from './lib/lessons_data';
 
@@ -69,6 +71,37 @@ const AudioEngine = {
       setTimeout(() => this.playTone(freq, 'sine', 0.3, 0.15), i * 150);
     });
   }
+};
+
+const isLessonInSemester = (lessonName: string, grade: string, subject: string, semester: 'HK1' | 'HK2') => {
+  const ranges: any = {
+    '3': {
+      'Tin học': { HK1: [1, 7], HK2: [8, 15] },
+      'Công nghệ': { HK1: [1, 6], HK2: [7, 9] },
+    },
+    '4': {
+      'Tin học': { HK1: [1, 8], HK2: [9, 14] },
+      'Công nghệ': { HK1: [1, 6], HK2: [6, 9] },
+    },
+    '5': {
+      'Tin học': { HK1: [1, 8], HK2: [9, 15] },
+      'Công nghệ': { HK1: [1, 6], HK2: [7, 9] },
+    }
+  };
+
+  const range = ranges[grade]?.[subject]?.[semester];
+  if (!range) return false;
+
+  const match = lessonName.match(/Bài\s*(\d+)/i);
+  if (match) {
+    const num = parseInt(match[1]);
+    return num >= range[0] && num <= range[1];
+  }
+
+  if (lessonName.toLowerCase().includes('ôn tập phần 1') || lessonName.toLowerCase().includes('ôn tập học kì 1')) return semester === 'HK1';
+  if (lessonName.toLowerCase().includes('ôn tập phần 2') || lessonName.toLowerCase().includes('ôn tập học kì 2')) return semester === 'HK2';
+
+  return false;
 };
 
 type OptionObject = {
@@ -262,12 +295,15 @@ export default function App() {
   // --- LOGIC ÔN TẬP ---
   const loadQuestionsFor = useCallback((subject: string, grade: string, lesson: string | null = null, allQuestions: Question[] = questions) => {
     let filtered = allQuestions.filter(q => q.subject === subject && q.grade === grade);
-    if (lesson) {
+    
+    if (lesson === 'HK1' || lesson === 'HK2') {
+      filtered = filtered.filter(q => q.lesson && isLessonInSemester(q.lesson, grade, subject, lesson));
+    } else if (lesson) {
       filtered = filtered.filter(q => q.lesson === lesson);
     }
     
     // Tự động trộn ngẫu nhiên các câu hỏi
-    const processed = shuffleArray<Question>(filtered).map((q: Question) => {
+    let processed = shuffleArray<Question>(filtered).map((q: Question) => {
       if (q.type === 'short_answer') {
         return { ...q };
       }
@@ -281,6 +317,11 @@ export default function App() {
         optionsObjects: shuffleArray(optionsWithStatus)
       };
     });
+
+    // Chọn ngẫu nhiên tối đa 15 câu khi ôn tập học kì hoặc toàn bộ học phần
+    if (lesson === 'HK1' || lesson === 'HK2' || lesson === null) {
+      processed = processed.slice(0, 15);
+    }
 
     setCurrentQuestions(processed);
     setCurrentQIndex(0);
@@ -412,99 +453,172 @@ export default function App() {
   // ================= RENDER =================
   if (!student && !isAdmin) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-300 via-purple-300 to-pink-300 flex items-center justify-center p-4 font-sans">
-        <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md text-center border-4 border-white transform transition-all hover:scale-105 duration-300">
-          <div className="flex justify-center mb-4">
-            <div className="bg-yellow-400 p-4 rounded-full shadow-lg">
-              <BookOpen size={48} className="text-white" />
+      <div className="min-h-screen bg-gradient-to-br from-indigo-300 via-purple-300 to-pink-300 flex items-center justify-center p-4 font-sans relative overflow-hidden">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <motion.div 
+             animate={{ y: [0, -30, 0], rotate: [0, 5, -5, 0] }} 
+             transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+             className="absolute top-10 left-[10%] text-yellow-300 opacity-60 drop-shadow-md"
+          >
+            <Star size={80} fill="currentColor" />
+          </motion.div>
+          <motion.div 
+             animate={{ y: [0, 40, 0], rotate: [0, -10, 10, 0] }} 
+             transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
+             className="absolute bottom-20 left-[15%] text-blue-200 opacity-80 drop-shadow-lg"
+          >
+            <Rocket size={100} fill="currentColor" />
+          </motion.div>
+          <motion.div 
+             animate={{ x: [0, 20, 0], scale: [1, 1.1, 1] }} 
+             transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
+             className="absolute top-20 right-[15%] text-pink-200 opacity-80 drop-shadow-md"
+          >
+            <Smile size={110} fill="currentColor" />
+          </motion.div>
+          <motion.div 
+             animate={{ scale: [1, 1.3, 1], rotate: [0, 180, 360] }} 
+             transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
+             className="absolute bottom-32 right-[10%] text-yellow-100 opacity-60 drop-shadow-xl"
+          >
+            <Sparkles size={90} fill="currentColor" />
+          </motion.div>
+          <motion.div 
+             animate={{ x: [-20, 20, -20] }} 
+             transition={{ repeat: Infinity, duration: 7, ease: "easeInOut" }}
+             className="absolute top-1/2 left-[5%] text-white opacity-40 drop-shadow-sm"
+          >
+            <Cloud size={120} fill="currentColor" />
+          </motion.div>
+          <motion.div 
+             animate={{ x: [20, -20, 20] }} 
+             transition={{ repeat: Infinity, duration: 9, ease: "easeInOut" }}
+             className="absolute top-1/3 right-[5%] text-white opacity-30 drop-shadow-md"
+          >
+            <Cloud size={150} fill="currentColor" />
+          </motion.div>
+        </div>
+
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0, y: 50 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ type: "spring", bounce: 0.5, duration: 0.8 }}
+          className="bg-white/95 backdrop-blur-xl p-8 md:p-10 rounded-[3rem] shadow-[0_20px_50px_rgba(8,_112,_184,_0.2)] w-full max-w-lg text-center border-8 border-white/60 relative z-10"
+        >
+          <motion.div 
+            animate={{ rotate: [0, -10, 10, -10, 10, 0] }}
+            transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", repeatDelay: 2 }}
+            className="flex justify-center mb-6"
+          >
+            <div className="bg-gradient-to-br from-yellow-400 to-orange-400 p-5 rounded-full shadow-lg border-4 border-white">
+              <BookOpen size={56} className="text-white" />
             </div>
-          </div>
-          <h1 className="text-3xl font-extrabold text-blue-600 mb-2">Góc Ôn Tập</h1>
-          <p className="text-gray-500 mb-6 font-medium">Cùng nhau học thật vui nhé!</p>
+          </motion.div>
+          
+          <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 mb-2 drop-shadow-sm">Góc Ôn Tập</h1>
+          <p className="text-gray-500 mb-8 font-medium text-lg">Cùng nhau học thật vui nhé!</p>
           
           {loginError && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl mb-4 relative font-bold animate-pulse text-sm">
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-r-xl mb-6 relative font-bold text-sm shadow-sm"
+            >
               {loginError}
-            </div>
+            </motion.div>
           )}
 
           {loginMode === 'student' ? (
-            <form onSubmit={handleLogin} className="space-y-4 text-left">
+            <form onSubmit={handleLogin} className="space-y-5 text-left">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Tên của em:</label>
+                <label className="block text-sm font-extrabold text-blue-800 mb-2 uppercase tracking-wider">Tên của em:</label>
                 <input 
                   type="text" 
                   value={loginForm.name}
                   onChange={e => setLoginForm({...loginForm, name: e.target.value})}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-200 outline-none transition-all text-lg"
+                  className="w-full px-5 py-4 rounded-2xl border-4 border-blue-100 hover:border-blue-200 focus:border-blue-500 focus:ring-0 outline-none transition-all text-lg font-bold text-gray-700 bg-blue-50/50"
                   placeholder="Ví dụ: Nam Anh"
                 />
               </div>
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-5">
                 <div className="flex-1">
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Lớp:</label>
+                  <label className="block text-sm font-extrabold text-green-800 mb-2 uppercase tracking-wider">Lớp:</label>
                   <input 
                     type="text" 
                     value={loginForm.className}
                     onChange={e => setLoginForm({...loginForm, className: e.target.value})}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 outline-none text-lg"
+                    className="w-full px-5 py-4 rounded-2xl border-4 border-green-100 hover:border-green-200 focus:border-green-500 focus:ring-0 outline-none transition-all text-lg font-bold text-gray-700 bg-green-50/50"
                     placeholder="Ví dụ: 3A"
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Khối:</label>
-                  <select 
-                    value={loginForm.grade}
-                    onChange={e => setLoginForm({...loginForm, grade: e.target.value})}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 outline-none text-lg font-bold text-blue-600 bg-white"
-                  >
-                    <option value="3">Khối 3</option>
-                    <option value="4">Khối 4</option>
-                    <option value="5">Khối 5</option>
-                  </select>
+                  <label className="block text-sm font-extrabold text-purple-800 mb-2 uppercase tracking-wider">Khối:</label>
+                  <div className="relative">
+                    <select 
+                      value={loginForm.grade}
+                      onChange={e => setLoginForm({...loginForm, grade: e.target.value})}
+                      className="w-full px-5 py-4 rounded-2xl border-4 border-purple-100 hover:border-purple-200 focus:border-purple-500 focus:ring-0 outline-none transition-all text-lg font-extrabold text-purple-600 bg-purple-50/50 appearance-none"
+                    >
+                      <option value="3">Khối 3</option>
+                      <option value="4">Khối 4</option>
+                      <option value="5">Khối 5</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-purple-600">
+                      <svg className="fill-current h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <button 
+              <motion.button 
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 type="submit"
-                className="w-full py-4 mt-4 bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white rounded-2xl font-bold text-xl shadow-lg transform hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
+                className="w-full py-4 mt-6 bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white rounded-2xl font-black text-xl shadow-[0_10px_20px_rgba(59,_130,_246,_0.3)] transition-all flex items-center justify-center gap-3 border-b-4 border-blue-700"
               >
-                <Play fill="currentColor" /> Vào Học Ngay!
-              </button>
+                <Play fill="currentColor" size={24} /> VÀO HỌC NGAY!
+              </motion.button>
             </form>
           ) : (
-            <form onSubmit={handleAdminLogin} className="space-y-4 text-left">
+            <motion.form 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              onSubmit={handleAdminLogin} className="space-y-5 text-left"
+            >
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Mật khẩu quản trị:</label>
+                <label className="block text-sm font-extrabold text-purple-800 mb-2 uppercase tracking-wider">Mật khẩu quản trị:</label>
                 <input 
                   type="password" 
                   value={adminPassword}
                   onChange={e => setAdminPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-200 outline-none transition-all text-lg"
+                  className="w-full px-5 py-4 rounded-2xl border-4 border-purple-100 hover:border-purple-200 focus:border-purple-500 focus:ring-0 outline-none transition-all text-lg font-bold text-gray-700 bg-purple-50/50"
                   placeholder="Nhập mật khẩu..."
                 />
-                <p className="text-xs text-gray-500 mt-1">Mật khẩu mẫu: admin123</p>
+                <p className="text-xs text-purple-600 font-medium mt-2 bg-purple-100 inline-block px-3 py-1 rounded-full">Mật khẩu mẫu: admin123</p>
               </div>
-              <button 
+              <motion.button 
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 type="submit"
-                className="w-full py-4 mt-4 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white rounded-2xl font-bold text-xl shadow-lg transform hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
+                className="w-full py-4 mt-6 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white rounded-2xl font-black text-xl shadow-[0_10px_20px_rgba(124,_58,_237,_0.3)] transition-all flex items-center justify-center gap-3 border-b-4 border-indigo-800"
               >
-                <User fill="currentColor" /> Đăng Nhập Quản Trị
-              </button>
-            </form>
+                <User fill="currentColor" size={24} /> ĐĂNG NHẬP TRANG QUẢN TRỊ
+              </motion.button>
+            </motion.form>
           )}
 
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center border-t-2 border-gray-100 pt-6">
             <button 
               onClick={() => {
                 setLoginMode(loginMode === 'student' ? 'admin' : 'student');
                 setLoginError('');
               }}
-              className="text-gray-500 hover:text-blue-600 font-bold underline transition-colors"
+              className="text-gray-400 hover:text-indigo-600 font-bold transition-colors text-sm flex items-center justify-center gap-2 mx-auto"
             >
-              {loginMode === 'student' ? 'Đăng nhập Quản trị viên' : 'Quay lại đăng nhập Học sinh'}
+              {loginMode === 'student' ? 'Đăng nhập dành cho Quản trị viên' : 'Quay lại cổng đăng nhập Học sinh'}
             </button>
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -528,7 +642,7 @@ export default function App() {
 
       {/* --- SIDEBAR TRÁI --- */}
       {isAdmin ? (
-        <div className="w-full md:w-72 md:h-screen sticky top-0 bg-white shadow-xl flex flex-col z-20 border-r border-gray-100 flex-shrink-0">
+        <div className="w-full md:w-80 lg:w-96 md:h-screen sticky top-0 bg-white shadow-xl flex flex-col z-20 border-r border-gray-100 flex-shrink-0">
           <div className="p-4 md:p-6 bg-gradient-to-b from-purple-500 to-indigo-600 text-white md:rounded-br-3xl flex justify-between items-center md:items-start md:flex-col">
             <div className="flex items-center gap-3 mb-0 md:mb-2">
               <div className="bg-white/20 p-2 rounded-full hidden sm:block md:block">
@@ -551,7 +665,7 @@ export default function App() {
           </div>
 
           <div 
-            className="p-2 md:p-4 flex-none md:flex-1 flex flex-row md:flex-col gap-2 mt-0 md:mt-4 overflow-x-auto whitespace-nowrap items-center md:items-stretch [&::-webkit-scrollbar]:hidden"
+            className="p-2 md:p-4 flex-none flex flex-row md:flex-col gap-2 mt-0 md:mt-4 overflow-x-auto whitespace-nowrap items-center md:items-stretch [&::-webkit-scrollbar]:hidden"
             style={{ scrollbarWidth: 'none' }}
           >
             <p className="hidden md:block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">Bảng Quản Trị</p>
@@ -579,6 +693,71 @@ export default function App() {
               <span className="text-sm md:text-base">Quản Lý Câu Hỏi</span>
             </button>
           </div>
+
+          {activeTab === 'admin' && (
+            <div className="hidden md:flex flex-col flex-1 overflow-y-auto w-full border-t border-gray-100 p-4">
+                 <h2 className="text-xl font-black text-gray-800 mb-4 flex items-center justify-between">
+                   <span>Ngân hàng câu hỏi</span>
+                   <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs">{questions.length} câu</span>
+                 </h2>
+                 
+                 <div className="space-y-4 flex-1">
+                   {['3', '4', '5'].map(grade => {
+                     const qsForGrade = questions.filter(q => String(q.grade) === grade);
+                     
+                     return (
+                       <details key={grade} className="group border-2 border-indigo-50 rounded-2xl overflow-hidden bg-indigo-50/30" open>
+                         <summary className="cursor-pointer p-3 font-extrabold text-sm text-indigo-800 flex items-center gap-2 hover:bg-indigo-100 transition-colors select-none list-none [&::-webkit-details-marker]:hidden">
+                           <div className="w-5 h-5 flex items-center justify-center bg-indigo-200 text-indigo-700 rounded-sm group-open:rotate-90 transition-transform">
+                             <ChevronLeft size={14} className="rotate-180" />
+                           </div>
+                           Khối {grade} ({qsForGrade.length})
+                         </summary>
+                         
+                         <div className="p-3 pt-0 space-y-2">
+                           {['Tin học', 'Công nghệ'].map(subject => {
+                             const qsForSubject = qsForGrade.filter(q => q.subject === subject);
+                             
+                             return (
+                               <details key={subject} className="group/sub border border-white rounded-xl overflow-hidden bg-white shadow-sm">
+                                 <summary className="cursor-pointer p-2 font-bold text-gray-700 flex items-center justify-between hover:bg-gray-50 transition-colors select-none list-none [&::-webkit-details-marker]:hidden">
+                                   <div className="flex items-center gap-2 text-xs">
+                                     <div className="w-4 h-4 flex items-center justify-center text-gray-400 group-open/sub:rotate-90 transition-transform">
+                                       <ChevronLeft size={12} className="rotate-180" />
+                                     </div>
+                                     {subject === 'Tin học' ? <Monitor size={14} className="text-blue-500"/> : <Cpu size={14} className="text-green-500"/>}
+                                     {subject}
+                                   </div>
+                                   <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-md text-gray-500">{qsForSubject.length}</span>
+                                 </summary>
+                                 
+                                 <div className="p-2 border-t border-gray-100 bg-gray-50/50 space-y-2 max-h-[40vh] overflow-y-auto">
+                                   {qsForSubject.length === 0 ? (
+                                      <p className="text-[10px] text-gray-400 italic text-center py-2">Chưa có câu hỏi</p>
+                                   ) : qsForSubject.map((q, idx) => (
+                                     <div key={idx} className="bg-white p-2 rounded-lg shadow-sm border border-gray-100 group/item">
+                                       <p className="text-gray-800 text-[11px] font-medium line-clamp-2" title={q.text}>{q.text}</p>
+                                       <div className="flex items-center justify-between mt-1.5">
+                                         <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded w-fit truncate max-w-[100px]" title={q.lesson || 'Ôn tập chung'}>
+                                           {q.lesson || 'Ôn tập chung'}
+                                         </span>
+                                         <span className="text-[9px] font-bold text-gray-400">
+                                           {q.type === 'short_answer' ? 'Ngắn' : 'TN'}
+                                         </span>
+                                       </div>
+                                     </div>
+                                   ))}
+                                 </div>
+                               </details>
+                             );
+                           })}
+                         </div>
+                       </details>
+                     );
+                   })}
+                 </div>
+            </div>
+          )}
 
           <div className="hidden md:flex p-4 border-t border-gray-100 gap-2 mt-auto">
              <button 
@@ -706,42 +885,73 @@ export default function App() {
         
         {/* VIEW: CHỌN MÔN HỌC */}
         {activeTab === 'select-subject' && !isAdmin && (
-          <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center transform transition-all duration-500">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-blue-600 mb-6 drop-shadow-sm">
-              Chào {student?.name}! Em muốn ôn tập môn nào?
-            </h1>
-            <p className="text-xl text-gray-500 mb-12 font-medium">Hãy nhấp vào một môn học dưới đây để bắt đầu nhé.</p>
+          <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center relative z-10 w-full pt-10">
+            <motion.div 
+               initial={{ y: -50, opacity: 0 }}
+               animate={{ y: 0, opacity: 1 }}
+               transition={{ type: "spring", bounce: 0.6 }}
+               className="mb-10 w-full"
+            >
+              <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-green-500 mb-4 drop-shadow-sm leading-tight">
+                Chào {student?.name}! <br className="md:hidden" /> Hôm nay em muốn khám phá gì nè?
+              </h1>
+              <p className="text-xl text-gray-500 font-medium">Hãy chọn một hành tinh môn học để bắt đầu nhé! 🚀</p>
+            </motion.div>
             
             <div className="flex flex-col sm:flex-row gap-8 w-full justify-center max-w-3xl">
-              <button 
+              <motion.button 
+                whileHover={{ scale: 1.05, y: -10 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setCurrentSubject('Tin học');
                   setActiveTab('select-lesson');
                   AudioEngine.playHover();
                 }}
-                className="flex-1 bg-white border-4 border-blue-200 hover:border-blue-500 p-8 rounded-[3rem] shadow-xl hover:shadow-2xl transform hover:-translate-y-2 transition-all flex flex-col items-center group"
+                className="flex-1 bg-white border-8 border-blue-100 hover:border-blue-400 p-8 rounded-[3rem] shadow-[0_20px_40px_rgba(59,_130,_246,_0.15)] transition-all flex flex-col items-center relative overflow-hidden group"
               >
-                <div className="bg-blue-100 p-6 rounded-full mb-6 group-hover:scale-110 transition-transform">
-                  <Monitor size={64} className="text-blue-500" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full mix-blend-multiply filter blur-2xl opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-50 rounded-full mix-blend-multiply filter blur-2xl opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                
+                <motion.div 
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+                  className="bg-gradient-to-br from-blue-400 to-indigo-500 p-6 rounded-3xl mb-6 shadow-lg z-10"
+                >
+                  <Monitor size={64} className="text-white relative z-10" />
+                </motion.div>
+                <h2 className="text-3xl font-black text-gray-800 mb-2 relative z-10">Tin Học</h2>
+                <p className="text-gray-500 font-medium relative z-10">Thế giới máy tính diệu kỳ</p>
+                <div className="mt-6 bg-blue-100 text-blue-700 px-6 py-2 rounded-full font-bold relative z-10 flex border-2 border-blue-200">
+                  Bay đến ngay! <Sparkles className="ml-2 w-5 h-5"/>
                 </div>
-                <h2 className="text-3xl font-extrabold text-gray-800 mb-2">Tin Học</h2>
-                <p className="text-gray-500 font-medium">Khám phá thế giới máy tính</p>
-              </button>
+              </motion.button>
 
-              <button 
+              <motion.button 
+                whileHover={{ scale: 1.05, y: -10 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setCurrentSubject('Công nghệ');
                   setActiveTab('select-lesson');
                   AudioEngine.playHover();
                 }}
-                className="flex-1 bg-white border-4 border-green-200 hover:border-green-500 p-8 rounded-[3rem] shadow-xl hover:shadow-2xl transform hover:-translate-y-2 transition-all flex flex-col items-center group"
+                className="flex-1 bg-white border-8 border-green-100 hover:border-green-400 p-8 rounded-[3rem] shadow-[0_20px_40px_rgba(16,_185,_129,_0.15)] transition-all flex flex-col items-center relative overflow-hidden group"
               >
-                <div className="bg-green-100 p-6 rounded-full mb-6 group-hover:scale-110 transition-transform">
-                  <Cpu size={64} className="text-green-500" />
+                <div className="absolute top-0 left-0 w-32 h-32 bg-green-50 rounded-full mix-blend-multiply filter blur-2xl opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-teal-50 rounded-full mix-blend-multiply filter blur-2xl opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                
+                <motion.div 
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ repeat: Infinity, duration: 4, ease: "easeInOut", delay: 0.5 }}
+                  className="bg-gradient-to-br from-green-400 to-emerald-500 p-6 rounded-3xl mb-6 shadow-lg z-10"
+                >
+                  <Cpu size={64} className="text-white relative z-10" />
+                </motion.div>
+                <h2 className="text-3xl font-black text-gray-800 mb-2 relative z-10">Công Nghệ</h2>
+                <p className="text-gray-500 font-medium relative z-10">Khám phá đồ vật quanh ta</p>
+                <div className="mt-6 bg-green-100 text-green-700 px-6 py-2 rounded-full font-bold relative z-10 flex border-2 border-green-200">
+                  Bay đến ngay! <Rocket className="ml-2 w-5 h-5"/>
                 </div>
-                <h2 className="text-3xl font-extrabold text-gray-800 mb-2">Công Nghệ</h2>
-                <p className="text-gray-500 font-medium">Tìm hiểu vật dụng quanh ta</p>
-              </button>
+              </motion.button>
             </div>
           </div>
         )}
@@ -768,6 +978,32 @@ export default function App() {
             </div>
             
             <div className="w-full bg-white rounded-3xl shadow-xl overflow-hidden p-6 border-2 border-gray-100">
+               {/* Ôn tập định kì */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 pb-8 border-b-2 border-dashed border-gray-200">
+                 <button
+                   onClick={() => {
+                     setCurrentLesson('HK1');
+                     setActiveTab('quiz');
+                     AudioEngine.playHover();
+                   }}
+                   className="flex items-center justify-center gap-3 p-6 bg-gradient-to-r from-orange-400 to-orange-500 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all text-white font-bold text-lg"
+                 >
+                   <Award size={28} />
+                   Ôn Tập Học Kì 1
+                 </button>
+                 <button
+                   onClick={() => {
+                     setCurrentLesson('HK2');
+                     setActiveTab('quiz');
+                     AudioEngine.playHover();
+                   }}
+                   className="flex items-center justify-center gap-3 p-6 bg-gradient-to-r from-pink-400 to-rose-500 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all text-white font-bold text-lg"
+                 >
+                   <Award size={28} />
+                   Ôn Tập Học Kì 2
+                 </button>
+               </div>
+
                {LESSONS_DATA[student.grade]?.[currentSubject]?.length > 0 ? (
                   <div className="space-y-6">
                     {LESSONS_DATA[student.grade][currentSubject].map((topicGroup, idx) => (
@@ -820,23 +1056,6 @@ export default function App() {
                  </div>
                )}
             </div>
-            
-            {/* Quick action to just review all */}
-             {LESSONS_DATA[student.grade]?.[currentSubject]?.length > 0 && (
-                <div className="mt-8">
-                  <button 
-                    onClick={() => {
-                      setCurrentLesson(null);
-                      setActiveTab('quiz');
-                      AudioEngine.playHover();
-                    }}
-                    className="flex items-center gap-2 px-8 py-4 bg-gray-800 hover:bg-gray-900 text-white rounded-full font-bold shadow-lg transition-all hover:-translate-y-1"
-                  >
-                    <Shuffle size={20}/>
-                    Ôn Tập Toàn Bộ Môn Này
-                  </button>
-                </div>
-             )}
           </div>
         )}
 
@@ -856,7 +1075,7 @@ export default function App() {
               </button>
               <h1 className="text-3xl font-extrabold text-gray-800 flex items-center gap-3">
                 {currentSubject === 'Tin học' ? <Monitor className="text-blue-500" size={36}/> : <Cpu className="text-green-500" size={36}/>}
-                Ôn Tập {currentSubject}
+                Ôn Tập {currentSubject} {currentLesson === 'HK1' ? 'Học Kì 1' : currentLesson === 'HK2' ? 'Học Kì 2' : ''}
                 <span className="bg-yellow-100 text-yellow-800 text-lg px-3 py-1 rounded-full ml-2">Khối {student.grade}</span>
               </h1>
             </div>
@@ -982,130 +1201,120 @@ export default function App() {
 
         {/* VIEW: QUẢN LÝ CÂU HỎI */}
         {activeTab === 'admin' && (
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-4xl mx-auto w-full">
             <h1 className="text-3xl font-extrabold text-purple-700 flex items-center gap-3 mb-8">
-              <PlusCircle size={36}/> Thêm Câu Hỏi Mới
+              <PlusCircle size={36}/> Trang Quản Trị
             </h1>
 
             <div className="bg-white p-8 rounded-3xl shadow-xl border-t-8 border-purple-500">
+              <h2 className="text-2xl font-black text-gray-800 mb-6 flex items-center gap-2">
+                <PlusCircle className="text-purple-600" /> Thêm Câu Hỏi Mới
+              </h2>
               <form onSubmit={handleAddQuestion} className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Loại câu hỏi</label>
-                    <select 
-                      value={newQ.type}
-                      onChange={e => setNewQ({...newQ, type: e.target.value as 'multiple_choice' | 'short_answer'})}
-                      className="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none font-bold text-gray-700"
-                    >
-                      <option value="multiple_choice">Trắc nghiệm</option>
-                      <option value="short_answer">Trả lời ngắn</option>
-                    </select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Loại câu hỏi</label>
+                      <select 
+                        value={newQ.type}
+                        onChange={e => setNewQ({...newQ, type: e.target.value as 'multiple_choice' | 'short_answer'})}
+                        className="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none font-bold text-gray-700"
+                      >
+                        <option value="multiple_choice">Trắc nghiệm</option>
+                        <option value="short_answer">Trả lời ngắn</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Môn học</label>
+                      <select 
+                        value={newQ.subject}
+                        onChange={e => setNewQ({...newQ, subject: e.target.value, lesson: ''})}
+                        className="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none font-bold text-gray-700"
+                      >
+                        <option value="Tin học">Tin học</option>
+                        <option value="Công nghệ">Công nghệ</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Khối lớp</label>
+                      <select 
+                        value={newQ.grade}
+                        onChange={e => setNewQ({...newQ, grade: e.target.value, lesson: ''})}
+                        className="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none font-bold text-gray-700"
+                      >
+                        <option value="3">Khối 3</option>
+                        <option value="4">Khối 4</option>
+                        <option value="5">Khối 5</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Bài học (Tùy chọn)</label>
+                      <select 
+                        value={newQ.lesson}
+                        onChange={e => setNewQ({...newQ, lesson: e.target.value})}
+                        className="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none font-bold text-gray-700"
+                      >
+                        <option value="">-- Chọn bài học hoặc để trống --</option>
+                        {LESSONS_DATA[newQ.grade]?.[newQ.subject]?.flatMap(topic => topic.lessons).map((lesson, idx) => (
+                          <option key={idx} value={lesson}>{lesson}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Môn học</label>
-                    <select 
-                      value={newQ.subject}
-                      onChange={e => setNewQ({...newQ, subject: e.target.value, lesson: ''})}
-                      className="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none font-bold text-gray-700"
-                    >
-                      <option value="Tin học">Tin học</option>
-                      <option value="Công nghệ">Công nghệ</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Khối lớp</label>
-                    <select 
-                      value={newQ.grade}
-                      onChange={e => setNewQ({...newQ, grade: e.target.value, lesson: ''})}
-                      className="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none font-bold text-gray-700"
-                    >
-                      <option value="3">Khối 3</option>
-                      <option value="4">Khối 4</option>
-                      <option value="5">Khối 5</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Bài học (Tùy chọn)</label>
-                    <select 
-                      value={newQ.lesson}
-                      onChange={e => setNewQ({...newQ, lesson: e.target.value})}
-                      className="w-full p-4 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none font-bold text-gray-700"
-                    >
-                      <option value="">-- Chọn bài học hoặc để trống --</option>
-                      {LESSONS_DATA[newQ.grade]?.[newQ.subject]?.flatMap(topic => topic.lessons).map((lesson, idx) => (
-                        <option key={idx} value={lesson}>{lesson}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Nội dung câu hỏi</label>
-                  <textarea 
-                    value={newQ.text}
-                    onChange={e => setNewQ({...newQ, text: e.target.value})}
-                    className="w-full p-4 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none text-lg min-h-[100px]"
-                    placeholder="Nhập nội dung câu hỏi..."
-                  />
-                </div>
-
-                {newQ.type === 'short_answer' ? (
-                  <div className="space-y-4">
-                    <label className="block text-sm font-bold text-gray-700">Đáp án (Các phương án đúng cách nhau bằng dấu phẩy)</label>
-                    <input 
-                      type="text" 
-                      value={newQ.shortAnswerText}
-                      onChange={e => setNewQ({...newQ, shortAnswerText: e.target.value})}
-                      className="w-full p-4 rounded-xl border-2 border-gray-200 focus:border-purple-500 outline-none"
-                      placeholder="VD: Màn hình, man hinh, Man hinh"
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Nội dung câu hỏi</label>
+                    <textarea 
+                      value={newQ.text}
+                      onChange={e => setNewQ({...newQ, text: e.target.value})}
+                      className="w-full p-4 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none text-lg min-h-[100px]"
+                      placeholder="Nhập nội dung câu hỏi..."
                     />
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <label className="block text-sm font-bold text-gray-700">Các đáp án (Tích chọn vào ô đúng nhất)</label>
-                    {[0, 1, 2, 3].map(idx => (
-                      <div key={idx} className="flex items-center gap-4 bg-gray-50 p-2 rounded-xl border-2 border-transparent focus-within:border-purple-200 transition-colors">
-                        <input 
-                          type="radio" 
-                          name="correctOption" 
-                          value={idx}
-                          checked={newQ.correctIndex === String(idx)}
-                          onChange={e => setNewQ({...newQ, correctIndex: e.target.value})}
-                          className="w-6 h-6 text-purple-600 focus:ring-purple-500 cursor-pointer ml-2"
-                        />
-                        <input 
-                          type="text" 
-                          value={(newQ as any)[`opt${idx}`]}
-                          onChange={e => setNewQ({...newQ, [`opt${idx}`]: e.target.value})}
-                          className="flex-1 p-3 rounded-lg border border-gray-300 focus:border-purple-500 outline-none"
-                          placeholder={`Đáp án ${String.fromCharCode(65 + idx)}...`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
 
-                <button 
-                  type="submit"
-                  className="w-full py-4 mt-6 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-bold text-xl shadow-lg transform hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
-                >
-                  <CheckCircle size={24} /> Lưu Câu Hỏi Này
-                </button>
-              </form>
-            </div>
-            
-            <div className="mt-8">
-               <h2 className="text-xl font-bold text-gray-700 mb-4">Danh sách câu hỏi hiện tại ({questions.length})</h2>
-               <div className="bg-white rounded-xl shadow p-4 max-h-60 overflow-y-auto">
-                 {questions.map((q, i) => (
-                    <div key={i} className="border-b border-gray-100 py-3 last:border-0 flex gap-2">
-                       <span className="font-bold text-blue-500 min-w-[50px]">Lớp {q.grade}</span>
-                       <span className="font-bold text-green-600 min-w-[80px]">{q.subject}</span>
-                       <span className="text-gray-700 truncate">{q.text}</span>
+                  {newQ.type === 'short_answer' ? (
+                    <div className="space-y-4">
+                      <label className="block text-sm font-bold text-gray-700">Đáp án (Các phương án đúng cách nhau bằng dấu phẩy)</label>
+                      <input 
+                        type="text" 
+                        value={newQ.shortAnswerText}
+                        onChange={e => setNewQ({...newQ, shortAnswerText: e.target.value})}
+                        className="w-full p-4 rounded-xl border-2 border-gray-200 focus:border-purple-500 outline-none"
+                        placeholder="VD: Màn hình, man hinh, Man hinh"
+                      />
                     </div>
-                 ))}
-               </div>
-            </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <label className="block text-sm font-bold text-gray-700">Các đáp án (Tích chọn vào ô đúng nhất)</label>
+                      {[0, 1, 2, 3].map(idx => (
+                        <div key={idx} className="flex items-center gap-4 bg-gray-50 p-2 rounded-xl border-2 border-transparent focus-within:border-purple-200 transition-colors">
+                          <input 
+                            type="radio" 
+                            name="correctOption" 
+                            value={idx}
+                            checked={newQ.correctIndex === String(idx)}
+                            onChange={e => setNewQ({...newQ, correctIndex: e.target.value})}
+                            className="w-6 h-6 text-purple-600 focus:ring-purple-500 cursor-pointer ml-2"
+                          />
+                          <input 
+                            type="text" 
+                            value={(newQ as any)[`opt${idx}`]}
+                            onChange={e => setNewQ({...newQ, [`opt${idx}`]: e.target.value})}
+                            className="flex-1 p-3 rounded-lg border border-gray-300 focus:border-purple-500 outline-none"
+                            placeholder={`Đáp án ${String.fromCharCode(65 + idx)}...`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button 
+                    type="submit"
+                    className="w-full py-4 mt-6 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-bold text-xl shadow-lg transform hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle size={24} /> Lưu Câu Hỏi Này
+                  </button>
+                </form>
+              </div>
           </div>
         )}
 

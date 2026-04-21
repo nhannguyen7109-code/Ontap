@@ -73,8 +73,8 @@ export const LESSONS_DATA: Record<string, Record<string, { topic?: string, lesso
         { topic: 'CHỦ ĐỀ F. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH', lessons: ['Bài 12 Làm quen với Scratch', 'Bài 13 Tạo chương trình máy tính để kể chuyện', 'Bài 14 Điều khiển nhân vật chuyển động trên sân khấu'] }
       ],
       'Công nghệ': [
-        { topic: 'PHẦN 1. CÔNG NGHỆ VÀ ĐỜI SỐNG', lessons: ['Bài 1 Hoa và cây cảnh quanh em', 'Bài 2 Vật liệu, dụng cụ trồng hoa và cây cảnh trong chậu', 'Bài 3 Gieo hạt và trồng cây hoa trong chậu', 'Bài 4 Trồng cây cảnh trong chậu', 'Bài 5 Chăm sóc hoa, cây cảnh trong chậu', 'Ôn tập phần 1 Công nghệ và đời sống'] },
-        { topic: 'PHẦN 2. THỦ CÔNG KĨ THUẬT', lessons: ['Bài 6 Bộ lắp ghép mô hình kĩ thuật', 'Bài 7 Em lắp ghép mô hình kĩ thuật', 'Bài 8 Đồ chơi dân gian', 'Bài 9 Em làm diều giấy', 'Ôn tập phần 2 Thủ công kĩ thuật'] }
+        { topic: 'PHẦN 1. CÔNG NGHỆ VÀ ĐỜI SỐNG', lessons: ['Bài 1 Hoa và cây cảnh quanh em', 'Bài 2 Vật liệu, dụng cụ trồng hoa và cây cảnh trong chậu', 'Bài 3 Gieo hạt và trồng cây hoa trong chậu', 'Bài 4 Trồng cây cảnh trong chậu', 'Bài 5 Chăm sóc hoa, cây cảnh trong chậu'] },
+        { topic: 'PHẦN 2. THỦ CÔNG KĨ THUẬT', lessons: ['Bài 6 Bộ lắp ghép mô hình kĩ thuật', 'Bài 7 Em lắp ghép mô hình kĩ thuật', 'Bài 8 Đồ chơi dân gian', 'Bài 9 Em làm diều giấy'] }
       ]
   },
   '5': {

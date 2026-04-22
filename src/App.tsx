@@ -32,6 +32,7 @@ import {
 import { motion } from "motion/react";
 
 import { LESSONS_DATA } from "./lib/lessons_data";
+import { supabase } from "./lib/supabase";
 
 // --- HỆ THỐNG ÂM THANH (Web Audio API) ---
 const AudioEngine = {
@@ -305,23 +306,78 @@ export default function App() {
   const [currentSubject, setCurrentSubject] = useState("Tin học");
   const [currentLesson, setCurrentLesson] = useState<string | null>(null);
 
-  const [questions, setQuestions] = useState<Question[]>(() => {
-    const saved = localStorage.getItem("quiz_questions");
-    return saved ? JSON.parse(saved) : INITIAL_QUESTIONS;
-  });
+  const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
+  const [history, setHistory] = useState<QuizHistory[]>([]);
 
-  const [history, setHistory] = useState<QuizHistory[]>(() => {
-    const saved = localStorage.getItem("quiz_history");
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  // Lấy dữ liệu từ Supabase Real-time
   useEffect(() => {
-    localStorage.setItem("quiz_questions", JSON.stringify(questions));
-  }, [questions]);
+    const fetchQuestions = async () => {
+      const { data, error } = await supabase.from("questions").select("*");
+      if (!error && data) {
+        const mappedQuestions = data.map((v) => ({
+          id: v.id,
+          subject: v.subject,
+          grade: v.grade,
+          lesson: v.lesson,
+          text: v.text,
+          type: v.type,
+          options: v.options,
+          correctIndex: v.correct_index,
+          shortAnswers: v.short_answers,
+        }));
+        if (mappedQuestions.length > 0) {
+          setQuestions(mappedQuestions);
+        }
+      }
+    };
 
-  useEffect(() => {
-    localStorage.setItem("quiz_history", JSON.stringify(history));
-  }, [history]);
+    const fetchHistory = async () => {
+      const { data, error } = await supabase
+        .from("quiz_history")
+        .select("*")
+        .order("date", { ascending: false });
+      if (!error && data) {
+        setHistory(
+          data.map((v) => ({
+            id: v.id,
+            studentName: v.student_name,
+            className: v.class_name,
+            grade: v.grade,
+            subject: v.subject,
+            score: v.score,
+            totalQuestions: v.total_questions,
+            date: new Date(v.date).toLocaleString("vi-VN"),
+          })),
+        );
+      }
+    };
+
+    fetchQuestions();
+    fetchHistory();
+
+    const questionSub = supabase
+      .channel("public:questions")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "questions" },
+        () => fetchQuestions(),
+      )
+      .subscribe();
+
+    const historySub = supabase
+      .channel("public:quiz_history")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "quiz_history" },
+        () => fetchHistory(),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(questionSub);
+      supabase.removeChannel(historySub);
+    };
+  }, []);
 
   const [currentQuestions, setCurrentQuestions] = useState<Question[]>([]);
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -515,10 +571,11 @@ export default function App() {
     }
   }, [currentSubject, student, activeTab, loadQuestionsFor, currentLesson]);
 
-  const finishQuiz = (finalScore: number) => {
+  const finishQuiz = async (finalScore: number) => {
     AudioEngine.playCongrats();
     setIsFinished(true);
     if (student) {
+      // Local optimistic update (replaced by realtime but good for UX)
       const newRecord: QuizHistory = {
         id: Date.now().toString(),
         studentName: student.name,
@@ -530,6 +587,23 @@ export default function App() {
         date: new Date().toLocaleString("vi-VN"),
       };
       setHistory((prev) => [newRecord, ...prev]);
+
+      // Push to Supabase
+      try {
+        await supabase.from("quiz_history").insert([
+          {
+            student_name: student.name,
+            class_name: student.className,
+            grade: student.grade,
+            subject: currentSubject,
+            score: finalScore,
+            total_questions: currentQuestions.length,
+            // date is auto-inserted in Supabase
+          },
+        ]);
+      } catch (err) {
+        console.error("Lỗi khi lưu lịch sử điểm", err);
+      }
     }
   };
 
@@ -586,7 +660,7 @@ export default function App() {
   };
 
   // --- LOGIC THÊM/SỬA CÂU HỎI ---
-  const handleSaveQuestion = (e: React.FormEvent) => {
+  const handleSaveQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     let questionToSave: Question;
 
@@ -628,10 +702,45 @@ export default function App() {
       setQuestions(
         questions.map((q) => (q.id === editingQuestionId ? questionToSave : q)),
       );
-      alert("Cập nhật câu hỏi thành công!");
+      try {
+        await supabase
+          .from("questions")
+          .update({
+            subject: questionToSave.subject,
+            grade: questionToSave.grade,
+            lesson: questionToSave.lesson,
+            text: questionToSave.text,
+            type: questionToSave.type,
+            options: questionToSave.options,
+            correct_index: questionToSave.correctIndex,
+            short_answers: questionToSave.shortAnswers,
+          })
+          .eq("id", editingQuestionId);
+        alert("Cập nhật câu hỏi thành công!");
+      } catch (e) {
+        console.error(e);
+        alert("Lưu Supabase thất bại");
+      }
     } else {
       setQuestions([...questions, questionToSave]);
-      alert("Thêm câu hỏi thành công!");
+      try {
+        await supabase.from("questions").insert([
+          {
+            id: questionToSave.id,
+            subject: questionToSave.subject,
+            grade: questionToSave.grade,
+            lesson: questionToSave.lesson,
+            text: questionToSave.text,
+            type: questionToSave.type,
+            options: questionToSave.options,
+            correct_index: questionToSave.correctIndex,
+            short_answers: questionToSave.shortAnswers,
+          },
+        ]);
+        alert("Thêm câu hỏi thành công!");
+      } catch (e) {
+        console.error(e);
+      }
     }
 
     setEditingQuestionId(null);

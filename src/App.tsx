@@ -297,12 +297,27 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 export default function App() {
-  const [student, setStudent] = useState<Student | null>(null);
+  const [student, setStudent] = useState<Student | null>(() => {
+    const saved = localStorage.getItem("quiz_student");
+    return saved ? JSON.parse(saved) : null;
+  });
+  
+  useEffect(() => {
+    if (student) {
+      localStorage.setItem("quiz_student", JSON.stringify(student));
+    } else {
+      localStorage.removeItem("quiz_student");
+    }
+  }, [student]);
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [loginMode, setLoginMode] = useState<"student" | "admin">("student");
   const [adminPassword, setAdminPassword] = useState("");
 
-  const [activeTab, setActiveTab] = useState("select-subject"); // 'select-subject', 'select-lesson', 'quiz', 'admin', 'history', 'leaderboard'
+  const [activeTab, setActiveTab] = useState(() => {
+     const saved = localStorage.getItem("quiz_student");
+     return saved ? "select-subject" : "select-subject";
+  }); // 'select-subject', 'select-lesson', 'quiz', 'admin', 'history', 'leaderboard'
   const [currentSubject, setCurrentSubject] = useState("Tin học");
   const [currentLesson, setCurrentLesson] = useState<string | null>(null);
 
@@ -514,6 +529,31 @@ export default function App() {
     }
   };
 
+  const handleLogout = () => {
+    setStudent(null);
+    setIsAdmin(false);
+    setActiveTab("select-subject");
+    localStorage.removeItem("quiz_student");
+    window.location.reload();
+  };
+
+  const handleDeleteHistory = async (id?: string) => {
+    if (window.confirm(id ? "Bạn có chắc chắn muốn xóa bản ghi này?" : "Bạn có chắc chắn muốn xóa toàn bộ lịch sử thi?")) {
+      try {
+        if (id) {
+          await supabase.from("quiz_history").delete().eq("id", id);
+          setHistory((prev) => prev.filter((h) => h.id !== id));
+        } else {
+          await supabase.from("quiz_history").delete().neq("id", "0");
+          setHistory([]);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Lỗi khi xóa lịch sử!");
+      }
+    }
+  };
+
   // --- LOGIC ÔN TẬP ---
   const loadQuestionsFor = useCallback(
     (
@@ -551,10 +591,8 @@ export default function App() {
         };
       });
 
-      // Chọn ngẫu nhiên tối đa 15 câu khi ôn tập học kì hoặc toàn bộ học phần
-      if (lesson === "HK1" || lesson === "HK2" || lesson === null) {
-        processed = processed.slice(0, 15);
-      }
+      // Chọn ngẫu nhiên tối đa 10 câu cho mỗi vòng thi, dẫu học cả môn hay một bài cụ thể
+      processed = processed.slice(0, 10);
 
       setCurrentQuestions(processed);
       setCurrentQIndex(0);
@@ -1028,7 +1066,7 @@ export default function App() {
                 {isBgmPlaying ? <Volume2 size={20} /> : <VolumeX size={20} />}
               </button>
               <button
-                onClick={() => window.location.reload()}
+                onClick={handleLogout}
                 className="p-2 bg-red-400/80 rounded-full hover:bg-red-500 transition-colors"
               >
                 <LogOut size={20} />
@@ -1232,9 +1270,7 @@ export default function App() {
               Nhạc
             </button>
             <button
-              onClick={() => {
-                window.location.reload();
-              }}
+              onClick={handleLogout}
               className="flex-1 flex items-center justify-center gap-2 p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors font-semibold text-sm"
             >
               <LogOut size={18} /> Thoát
@@ -1267,7 +1303,7 @@ export default function App() {
                 {isBgmPlaying ? <Volume2 size={20} /> : <VolumeX size={20} />}
               </button>
               <button
-                onClick={() => window.location.reload()}
+                onClick={handleLogout}
                 className="p-2 bg-red-400/80 rounded-full hover:bg-red-500 transition-colors"
               >
                 <LogOut size={20} />
@@ -1393,9 +1429,7 @@ export default function App() {
               Nhạc
             </button>
             <button
-              onClick={() => {
-                window.location.reload();
-              }}
+              onClick={handleLogout}
               className="flex-1 flex items-center justify-center gap-2 p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors font-semibold text-sm"
             >
               <LogOut size={18} /> Thoát
@@ -1971,60 +2005,87 @@ export default function App() {
         {/* VIEW: LỊCH SỬ THI */}
         {activeTab === "history" && (
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-3xl font-extrabold text-orange-600 flex items-center gap-3 mb-8">
-              <HistoryIcon size={36} /> Lịch Sử Ôn Tập
-            </h1>
-            {history.length === 0 ? (
-              <div className="bg-white p-10 rounded-3xl shadow-sm text-center border-2 border-dashed border-gray-300">
-                <p className="text-gray-500">Chưa có lịch sử thi nào.</p>
-              </div>
-            ) : (
-              <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-orange-50 text-orange-800">
-                      <tr>
-                        <th className="p-4 font-bold">Thời gian</th>
-                        <th className="p-4 font-bold">Học sinh</th>
-                        <th className="p-4 font-bold">Lớp</th>
-                        <th className="p-4 font-bold">Môn</th>
-                        <th className="p-4 font-bold text-center">Khối</th>
-                        <th className="p-4 font-bold text-center">Điểm</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {history.map((record) => (
-                        <tr
-                          key={record.id}
-                          className="hover:bg-orange-50/50 transition-colors"
-                        >
-                          <td className="p-4 text-sm text-gray-500">
-                            {record.date}
-                          </td>
-                          <td className="p-4 font-bold text-gray-800">
-                            {record.studentName}
-                          </td>
-                          <td className="p-4 text-gray-600">
-                            {record.className}
-                          </td>
-                          <td className="p-4 text-blue-600 font-medium">
-                            {record.subject}
-                          </td>
-                          <td className="p-4 text-center">
-                            <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm font-bold">
-                              {record.grade}
-                            </span>
-                          </td>
-                          <td className="p-4 text-center font-extrabold text-green-500 text-lg">
-                            {record.score}/{record.totalQuestions}
-                          </td>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+              <h1 className="text-3xl font-extrabold text-orange-600 flex items-center gap-3">
+                <HistoryIcon size={36} /> {isAdmin ? "Tất Cả Lịch Sử" : `Lịch Sử Ôn Tập Khối ${student?.grade}`}
+              </h1>
+              {isAdmin && history.length > 0 && (
+                <button
+                  onClick={() => handleDeleteHistory()}
+                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-sm transition-all"
+                >
+                  <XCircle size={20} /> Xóa Toàn Bộ Lịch Sử
+                </button>
+              )}
+            </div>
+            
+            {(() => {
+              const displayHistory = isAdmin ? history : history.filter((h) => h.grade === student?.grade);
+              
+              if (displayHistory.length === 0) {
+                return (
+                  <div className="bg-white p-10 rounded-3xl shadow-sm text-center border-2 border-dashed border-gray-300">
+                    <p className="text-gray-500">Chưa có lịch sử thi nào.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-orange-50 text-orange-800">
+                        <tr>
+                          <th className="p-4 font-bold">Thời gian</th>
+                          <th className="p-4 font-bold">Học sinh</th>
+                          <th className="p-4 font-bold">Lớp</th>
+                          <th className="p-4 font-bold">Môn</th>
+                          <th className="p-4 font-bold text-center">Khối</th>
+                          <th className="p-4 font-bold text-center">Điểm</th>
+                          {isAdmin && <th className="p-4 font-bold text-center">Hành động</th>}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {displayHistory.map((record) => (
+                          <tr
+                            key={record.id}
+                            className="hover:bg-orange-50/50 transition-colors"
+                          >
+                            <td className="p-4 text-sm text-gray-500">
+                              {record.date}
+                            </td>
+                            <td className="p-4 font-bold text-gray-800">
+                              {record.studentName}
+                            </td>
+                            <td className="p-4 text-gray-600">
+                              {record.className}
+                            </td>
+                            <td className="p-4 text-blue-600 font-medium">
+                              {record.subject}
+                            </td>
+                            <td className="p-4 text-center">
+                              <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm font-bold">
+                                {record.grade}
+                              </span>
+                            </td>
+                            <td className="p-4 text-center font-extrabold text-green-500 text-lg">
+                              {record.score}/{record.totalQuestions}
+                            </td>
+                            {isAdmin && (
+                              <td className="p-4 text-center">
+                                 <button onClick={() => handleDeleteHistory(record.id)} className="text-red-400 hover:text-red-600 transition-colors">
+                                    <XCircle size={20} />
+                                 </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 

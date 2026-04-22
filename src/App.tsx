@@ -314,12 +314,19 @@ export default function App() {
   const [loginMode, setLoginMode] = useState<"student" | "admin">("student");
   const [adminPassword, setAdminPassword] = useState("");
 
+  const initialState = useMemo(() => {
+    try {
+      const saved = localStorage.getItem("quiz_app_state");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  }, []);
+
   const [activeTab, setActiveTab] = useState(() => {
-     const saved = localStorage.getItem("quiz_student");
-     return saved ? "select-subject" : "select-subject";
+    return initialState?.activeTab || (localStorage.getItem("quiz_student") ? "select-subject" : "select-subject");
   }); // 'select-subject', 'select-lesson', 'quiz', 'admin', 'history', 'leaderboard'
-  const [currentSubject, setCurrentSubject] = useState("Tin học");
-  const [currentLesson, setCurrentLesson] = useState<string | null>(null);
+  const [currentSubject, setCurrentSubject] = useState(initialState?.currentSubject || "Tin học");
+  const [currentLesson, setCurrentLesson] = useState<string | null>(initialState?.currentLesson || null);
 
   const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
   const [history, setHistory] = useState<QuizHistory[]>([]);
@@ -394,14 +401,40 @@ export default function App() {
     };
   }, []);
 
-  const [currentQuestions, setCurrentQuestions] = useState<Question[]>([]);
-  const [currentQIndex, setCurrentQIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [isFinished, setIsFinished] = useState(false);
+  const [currentQuestions, setCurrentQuestions] = useState<Question[]>(initialState?.currentQuestions || []);
+  const [currentQIndex, setCurrentQIndex] = useState(initialState?.currentQIndex || 0);
+  const [score, setScore] = useState(initialState?.score || 0);
+  const [isFinished, setIsFinished] = useState(initialState?.isFinished || false);
   const [answerStatus, setAnswerStatus] = useState<{
     index: number;
     isCorrect: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    if (student) {
+      localStorage.setItem(
+        "quiz_app_state",
+        JSON.stringify({
+          activeTab,
+          currentSubject,
+          currentLesson,
+          currentQuestions,
+          currentQIndex,
+          score,
+          isFinished,
+        })
+      );
+    }
+  }, [
+    student,
+    activeTab,
+    currentSubject,
+    currentLesson,
+    currentQuestions,
+    currentQIndex,
+    score,
+    isFinished,
+  ]);
 
   // Trạng thái cho nhạc nền
   const [isBgmPlaying, setIsBgmPlaying] = useState(false);
@@ -534,6 +567,7 @@ export default function App() {
     setIsAdmin(false);
     setActiveTab("select-subject");
     localStorage.removeItem("quiz_student");
+    localStorage.removeItem("quiz_app_state");
     window.location.reload();
   };
 

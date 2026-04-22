@@ -621,7 +621,6 @@ export default function App() {
                   className="w-full px-5 py-4 rounded-2xl border-4 border-purple-100 hover:border-purple-200 focus:border-purple-500 focus:ring-0 outline-none transition-all text-lg font-bold text-gray-700 bg-purple-50/50"
                   placeholder="Nhập mật khẩu..."
                 />
-                <p className="text-xs text-purple-600 font-medium mt-2 bg-purple-100 inline-block px-3 py-1 rounded-full">Mật khẩu mẫu: admin123</p>
               </div>
               <motion.button 
                 whileHover={{ scale: 1.03 }}

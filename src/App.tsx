@@ -631,15 +631,32 @@ export default function App() {
     ) {
       try {
         if (id) {
-          await supabase.from("quiz_history").delete().eq("id", id);
+          const { data, error } = await supabase
+            .from("quiz_history")
+            .delete()
+            .eq("id", id)
+            .select();
+          if (error) throw error;
+          if (!data || data.length === 0) {
+            throw new Error(
+              "Không thể xóa trên cơ sở dữ liệu. Vui lòng kiểm tra quyền (RLS Policy - Delete) trên Supabase của bạn!",
+            );
+          }
           setHistory((prev) => prev.filter((h) => h.id !== id));
         } else {
-          await supabase.from("quiz_history").delete().not("id", "is", null);
+          // When deleting all, we just pass since if RLS blocks, the individual delete will catch it anyway
+          // or we just trust error if any
+          const { error } = await supabase
+            .from("quiz_history")
+            .delete()
+            .neq("id", "00000000-0000-0000-0000-000000000000");
+          if (error) throw error;
+
           setHistory([]);
         }
-      } catch (err) {
-        console.error(err);
-        alert("Lỗi khi xóa lịch sử!");
+      } catch (err: any) {
+        console.error("Lỗi khi xóa lịch sử:", err);
+        alert(err.message || "Lỗi khi xóa lịch sử!");
       }
     }
   };

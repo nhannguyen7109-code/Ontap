@@ -1640,7 +1640,7 @@ export default function App() {
                   Thế giới máy tính diệu kỳ
                 </p>
                 <div className="mt-6 bg-blue-100 text-blue-700 px-6 py-2 rounded-full font-bold relative z-10 flex border-2 border-blue-200">
-                  Bay đến ngay! <Sparkles className="ml-2 w-5 h-5" />
+                  Bắt đầu ngay <Sparkles className="ml-2 w-5 h-5" />
                 </div>
               </motion.button>
 
@@ -1676,7 +1676,7 @@ export default function App() {
                   Khám phá đồ vật quanh ta
                 </p>
                 <div className="mt-6 bg-green-100 text-green-700 px-6 py-2 rounded-full font-bold relative z-10 flex border-2 border-green-200">
-                  Bay đến ngay! <Rocket className="ml-2 w-5 h-5" />
+                  Bắt đầu ngay <Rocket className="ml-2 w-5 h-5" />
                 </div>
               </motion.button>
             </div>
@@ -1686,22 +1686,21 @@ export default function App() {
         {/* VIEW: CHỌN BÀI HỌC */}
         {activeTab === "select-lesson" && student && (
           <div className="max-w-4xl mx-auto flex flex-col items-center justify-start min-h-[60vh] transform transition-all duration-500 pt-8">
-            <div className="flex w-full justify-between items-center mb-8">
+            <div className="flex flex-col w-full items-center gap-4 mb-8 text-center">
+              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-800 flex items-center justify-center gap-3">
+                <BookText className="text-blue-500" size={32} />
+                Danh Sách Bài Học - {currentSubject} Khối {student.grade}
+              </h1>
               <button
                 onClick={() => {
                   setActiveTab("select-subject");
                   AudioEngine.playHover();
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 font-bold transition-colors"
+                className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-200 hover:bg-gray-50 active:scale-95 rounded-2xl text-gray-700 font-extrabold shadow-sm transition-all text-lg"
               >
-                <ChevronLeft size={20} />
-                Quay Lại
+                <ChevronLeft size={24} />
+                Quay Lại danh mục
               </button>
-              <h1 className="text-3xl font-extrabold text-gray-800 flex items-center gap-3">
-                <BookText className="text-blue-500" size={32} />
-                Danh Sách Bài Học - {currentSubject} Khối {student.grade}
-              </h1>
-              <div className="w-[100px]"></div> {/* Spacer */}
             </div>
 
             <div className="w-full bg-white rounded-3xl shadow-xl overflow-hidden p-6 border-2 border-gray-100">

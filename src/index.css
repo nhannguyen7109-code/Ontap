@@ -1,1 +1,31 @@
 @import "tailwindcss";
+
+@keyframes shake-and-flash {
+  0% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-8px) rotate(-2deg);
+  }
+  30% {
+    transform: translateX(8px) rotate(2deg);
+  }
+  45% {
+    transform: translateX(-8px) rotate(-2deg);
+  }
+  60% {
+    transform: translateX(8px) rotate(2deg);
+  }
+  75% {
+    transform: translateX(-4px) rotate(-1deg);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-shake-error {
+  animation: shake-and-flash 1s ease-in-out both;
+  background-color: #ef4444 !important; /* bg-red-500 */
+  box-shadow: 0 4px 6px -1px rgb(239 68 68 / 0.5) !important;
+}

@@ -177,6 +177,13 @@ type Student = {
   grade: string;
 };
 
+type HistoryDetail = {
+  questionText: string;
+  isCorrect: boolean;
+  userAnswerText?: string;
+  correctAnswerText?: string;
+};
+
 type QuizHistory = {
   id: string;
   studentName: string;
@@ -186,6 +193,7 @@ type QuizHistory = {
   score: number;
   totalQuestions: number;
   date: string;
+  details?: string;
 };
 
 // --- DỮ LIỆU CÂU HỎI MẪU ---
@@ -301,7 +309,7 @@ export default function App() {
     const saved = localStorage.getItem("quiz_student");
     return saved ? JSON.parse(saved) : null;
   });
-  
+
   useEffect(() => {
     if (student) {
       localStorage.setItem("quiz_student", JSON.stringify(student));
@@ -323,10 +331,19 @@ export default function App() {
   }, []);
 
   const [activeTab, setActiveTab] = useState(() => {
-    return initialState?.activeTab || (localStorage.getItem("quiz_student") ? "select-subject" : "select-subject");
+    return (
+      initialState?.activeTab ||
+      (localStorage.getItem("quiz_student")
+        ? "select-subject"
+        : "select-subject")
+    );
   }); // 'select-subject', 'select-lesson', 'quiz', 'admin', 'history', 'leaderboard'
-  const [currentSubject, setCurrentSubject] = useState(initialState?.currentSubject || "Tin học");
-  const [currentLesson, setCurrentLesson] = useState<string | null>(initialState?.currentLesson || null);
+  const [currentSubject, setCurrentSubject] = useState(
+    initialState?.currentSubject || "Tin học",
+  );
+  const [currentLesson, setCurrentLesson] = useState<string | null>(
+    initialState?.currentLesson || null,
+  );
 
   const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
   const [history, setHistory] = useState<QuizHistory[]>([]);
@@ -369,6 +386,7 @@ export default function App() {
             score: v.score,
             totalQuestions: v.total_questions,
             date: new Date(v.date).toLocaleString("vi-VN"),
+            details: v.details,
           })),
         );
       }
@@ -401,14 +419,24 @@ export default function App() {
     };
   }, []);
 
-  const [currentQuestions, setCurrentQuestions] = useState<Question[]>(initialState?.currentQuestions || []);
-  const [currentQIndex, setCurrentQIndex] = useState(initialState?.currentQIndex || 0);
+  const [currentQuestions, setCurrentQuestions] = useState<Question[]>(
+    initialState?.currentQuestions || [],
+  );
+  const [currentQIndex, setCurrentQIndex] = useState(
+    initialState?.currentQIndex || 0,
+  );
   const [score, setScore] = useState(initialState?.score || 0);
-  const [isFinished, setIsFinished] = useState(initialState?.isFinished || false);
+  const [isFinished, setIsFinished] = useState(
+    initialState?.isFinished || false,
+  );
   const [answerStatus, setAnswerStatus] = useState<{
     index: number;
     isCorrect: boolean;
   } | null>(null);
+
+  const [historyDetails, setHistoryDetails] = useState<HistoryDetail[]>(
+    initialState?.historyDetails || [],
+  );
 
   useEffect(() => {
     if (student) {
@@ -422,7 +450,8 @@ export default function App() {
           currentQIndex,
           score,
           isFinished,
-        })
+          historyDetails,
+        }),
       );
     }
   }, [
@@ -434,6 +463,7 @@ export default function App() {
     currentQIndex,
     score,
     isFinished,
+    historyDetails,
   ]);
 
   // Trạng thái cho nhạc nền
@@ -454,6 +484,10 @@ export default function App() {
         return "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3";
     }
   }, [student?.grade]);
+
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(
+    null,
+  );
 
   // Form đăng nhập
   const [loginForm, setLoginForm] = useState({
@@ -511,6 +545,22 @@ export default function App() {
 
     if (!pName || !pClass) {
       setLoginError("Em nhớ điền đầy đủ Tên và Lớp nhé! 📝");
+      return;
+    }
+
+    if (pName.split(/\s+/).length < 2) {
+      setLoginError(
+        "Em vui lòng nhập đầy đủ Họ và Tên nhé (ví dụ: Nguyễn Văn A) 📝",
+      );
+      return;
+    }
+
+    const hasDiacritics =
+      /[ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ]/;
+    if (!hasDiacritics.test(pName)) {
+      setLoginError(
+        "Em vui lòng gõ Tiếng Việt có dấu cho Họ và Tên của mình nhé! 📝",
+      );
       return;
     }
 
@@ -572,13 +622,19 @@ export default function App() {
   };
 
   const handleDeleteHistory = async (id?: string) => {
-    if (window.confirm(id ? "Bạn có chắc chắn muốn xóa bản ghi này?" : "Bạn có chắc chắn muốn xóa toàn bộ lịch sử thi?")) {
+    if (
+      window.confirm(
+        id
+          ? "Bạn có chắc chắn muốn xóa bản ghi này?"
+          : "Bạn có chắc chắn muốn xóa toàn bộ lịch sử thi?",
+      )
+    ) {
       try {
         if (id) {
           await supabase.from("quiz_history").delete().eq("id", id);
           setHistory((prev) => prev.filter((h) => h.id !== id));
         } else {
-          await supabase.from("quiz_history").delete().neq("id", "0");
+          await supabase.from("quiz_history").delete().not("id", "is", null);
           setHistory([]);
         }
       } catch (err) {
@@ -633,6 +689,7 @@ export default function App() {
       setScore(0);
       setIsFinished(false);
       setAnswerStatus(null);
+      setHistoryDetails([]);
     },
     [questions],
   );
@@ -643,7 +700,10 @@ export default function App() {
     }
   }, [currentSubject, student, activeTab, loadQuestionsFor, currentLesson]);
 
-  const finishQuiz = async (finalScore: number) => {
+  const finishQuiz = async (
+    finalScore: number,
+    finalDetails: HistoryDetail[],
+  ) => {
     AudioEngine.playCongrats();
     setIsFinished(true);
     if (student) {
@@ -657,6 +717,7 @@ export default function App() {
         score: finalScore,
         totalQuestions: currentQuestions.length,
         date: new Date().toLocaleString("vi-VN"),
+        details: JSON.stringify(finalDetails),
       };
       setHistory((prev) => [newRecord, ...prev]);
 
@@ -670,6 +731,7 @@ export default function App() {
             subject: currentSubject,
             score: finalScore,
             total_questions: currentQuestions.length,
+            details: JSON.stringify(finalDetails),
             // date is auto-inserted in Supabase
           },
         ]);
@@ -690,6 +752,16 @@ export default function App() {
       (ans) => ans.toLowerCase() === shortAnswerText.trim().toLowerCase(),
     );
 
+    const newDetail: HistoryDetail = {
+      questionText: q.text,
+      isCorrect,
+      userAnswerText: shortAnswerText.trim(),
+      correctAnswerText: (q.shortAnswers || []).join(" hoặc "),
+    };
+
+    const updatedDetails = [...historyDetails, newDetail];
+    setHistoryDetails(updatedDetails);
+
     setAnswerStatus({ index: -1, isCorrect });
     if (isCorrect) {
       AudioEngine.playCorrect();
@@ -704,13 +776,24 @@ export default function App() {
       if (currentQIndex + 1 < currentQuestions.length) {
         setCurrentQIndex(currentQIndex + 1);
       } else {
-        finishQuiz(isCorrect ? score + 1 : score);
+        finishQuiz(isCorrect ? score + 1 : score, updatedDetails);
       }
     }, 1500);
   };
 
   const handleAnswer = (idx: number, isCorrect: boolean) => {
     if (answerStatus) return; // Ngăn người dùng bấm liên tục khi đang hiện thông báo
+
+    const q = currentQuestions[currentQIndex];
+    const newDetail: HistoryDetail = {
+      questionText: q.text,
+      isCorrect,
+      userAnswerText: q.optionsObjects?.[idx].text || "",
+      correctAnswerText: q.optionsObjects?.find((o) => o.isCorrect)?.text || "",
+    };
+
+    const updatedDetails = [...historyDetails, newDetail];
+    setHistoryDetails(updatedDetails);
 
     setAnswerStatus({ index: idx, isCorrect });
 
@@ -726,7 +809,7 @@ export default function App() {
       if (currentQIndex + 1 < currentQuestions.length) {
         setCurrentQIndex(currentQIndex + 1);
       } else {
-        finishQuiz(isCorrect ? score + 1 : score);
+        finishQuiz(isCorrect ? score + 1 : score, updatedDetails);
       }
     }, 1500); // Tăng thời gian chờ lên 1.5s để học sinh kịp đọc thông báo
   };
@@ -1799,7 +1882,11 @@ export default function App() {
                           value={shortAnswerText}
                           onChange={(e) => setShortAnswerText(e.target.value)}
                           disabled={!!answerStatus}
-                          className="w-full px-6 py-4 rounded-3xl border-4 border-blue-200 focus:border-blue-500 outline-none text-2xl font-bold text-gray-700 shadow-inner"
+                          className={`w-full px-6 py-4 rounded-3xl border-4 ${
+                            answerStatus && !answerStatus.isCorrect
+                              ? "animate-shake-error text-white placeholder-red-200"
+                              : "border-blue-200 focus:border-blue-500 text-gray-700"
+                          } outline-none text-2xl font-bold shadow-inner`}
                           placeholder="Nhập câu trả lời của em ở đây..."
                           autoFocus
                         />
@@ -1822,7 +1909,7 @@ export default function App() {
                             // Nút người dùng vừa chọn
                             btnStyle = opt.isCorrect
                               ? "bg-green-500 shadow-green-300 scale-[1.02]"
-                              : "bg-red-500 shadow-red-300 scale-[1.02]";
+                              : "animate-shake-error scale-[1.02]";
                           } else if (opt.isCorrect) {
                             // Gợi ý luôn đáp án đúng nếu người dùng chọn sai
                             btnStyle =
@@ -2041,7 +2128,10 @@ export default function App() {
           <div className="max-w-4xl mx-auto">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
               <h1 className="text-3xl font-extrabold text-orange-600 flex items-center gap-3">
-                <HistoryIcon size={36} /> {isAdmin ? "Tất Cả Lịch Sử" : `Lịch Sử Ôn Tập Khối ${student?.grade}`}
+                <HistoryIcon size={36} />{" "}
+                {isAdmin
+                  ? "Tất Cả Lịch Sử"
+                  : `Lịch Sử Ôn Tập Khối ${student?.grade}`}
               </h1>
               {isAdmin && history.length > 0 && (
                 <button
@@ -2052,10 +2142,12 @@ export default function App() {
                 </button>
               )}
             </div>
-            
+
             {(() => {
-              const displayHistory = isAdmin ? history : history.filter((h) => h.grade === student?.grade);
-              
+              const displayHistory = isAdmin
+                ? history
+                : history.filter((h) => h.grade === student?.grade);
+
               if (displayHistory.length === 0) {
                 return (
                   <div className="bg-white p-10 rounded-3xl shadow-sm text-center border-2 border-dashed border-gray-300">
@@ -2076,43 +2168,137 @@ export default function App() {
                           <th className="p-4 font-bold">Môn</th>
                           <th className="p-4 font-bold text-center">Khối</th>
                           <th className="p-4 font-bold text-center">Điểm</th>
-                          {isAdmin && <th className="p-4 font-bold text-center">Hành động</th>}
+                          {isAdmin && (
+                            <th className="p-4 font-bold text-center">
+                              Hành động
+                            </th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {displayHistory.map((record) => (
-                          <tr
-                            key={record.id}
-                            className="hover:bg-orange-50/50 transition-colors"
-                          >
-                            <td className="p-4 text-sm text-gray-500">
-                              {record.date}
-                            </td>
-                            <td className="p-4 font-bold text-gray-800">
-                              {record.studentName}
-                            </td>
-                            <td className="p-4 text-gray-600">
-                              {record.className}
-                            </td>
-                            <td className="p-4 text-blue-600 font-medium">
-                              {record.subject}
-                            </td>
-                            <td className="p-4 text-center">
-                              <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm font-bold">
-                                {record.grade}
-                              </span>
-                            </td>
-                            <td className="p-4 text-center font-extrabold text-green-500 text-lg">
-                              {record.score}/{record.totalQuestions}
-                            </td>
-                            {isAdmin && (
-                              <td className="p-4 text-center">
-                                 <button onClick={() => handleDeleteHistory(record.id)} className="text-red-400 hover:text-red-600 transition-colors">
-                                    <XCircle size={20} />
-                                 </button>
+                          <React.Fragment key={record.id}>
+                            <tr
+                              onClick={() => {
+                                if (isAdmin && record.details) {
+                                  setExpandedHistoryId(
+                                    expandedHistoryId === record.id
+                                      ? null
+                                      : record.id,
+                                  );
+                                }
+                              }}
+                              className={`hover:bg-orange-50/50 transition-colors ${isAdmin && record.details ? "cursor-pointer" : ""}`}
+                            >
+                              <td className="p-4 text-sm text-gray-500">
+                                {record.date}
                               </td>
-                            )}
-                          </tr>
+                              <td className="p-4 font-bold text-gray-800">
+                                {record.studentName}
+                              </td>
+                              <td className="p-4 text-gray-600">
+                                {record.className}
+                              </td>
+                              <td className="p-4 text-blue-600 font-medium">
+                                {record.subject}
+                              </td>
+                              <td className="p-4 text-center">
+                                <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm font-bold">
+                                  {record.grade}
+                                </span>
+                              </td>
+                              <td className="p-4 text-center font-extrabold text-green-500 text-lg">
+                                {record.score}/{record.totalQuestions}
+                              </td>
+                              {isAdmin && (
+                                <td className="p-4 text-center space-x-2">
+                                  {record.details && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedHistoryId(
+                                          expandedHistoryId === record.id
+                                            ? null
+                                            : record.id,
+                                        );
+                                      }}
+                                      className="text-blue-500 hover:text-blue-700 transition-colors font-semibold text-sm underline mr-3"
+                                    >
+                                      {expandedHistoryId === record.id
+                                        ? "Thu gọn"
+                                        : "Xem chi tiết"}
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteHistory(record.id);
+                                    }}
+                                    className="text-red-400 hover:text-red-600 transition-colors"
+                                  >
+                                    <XCircle size={20} />
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                            {expandedHistoryId === record.id &&
+                              record.details && (
+                                <tr className="bg-orange-50/30">
+                                  <td
+                                    colSpan={isAdmin ? 7 : 6}
+                                    className="p-0 border-b border-gray-100"
+                                  >
+                                    <div className="p-4 flex flex-col gap-3">
+                                      <h4 className="font-bold text-gray-700">
+                                        Chi tiết bài làm:
+                                      </h4>
+                                      <div className="flex flex-col gap-2">
+                                        {JSON.parse(record.details).map(
+                                          (
+                                            detail: HistoryDetail,
+                                            idx: number,
+                                          ) => (
+                                            <div
+                                              key={idx}
+                                              className="p-3 bg-white rounded-lg border border-gray-200"
+                                            >
+                                              <p className="font-semibold text-gray-800 mb-1">
+                                                Câu {idx + 1}:{" "}
+                                                {detail.questionText}
+                                              </p>
+                                              <div className="flex items-center gap-4 text-sm">
+                                                <span
+                                                  className={`px-2 py-1 flex items-center justify-center font-bold rounded text-white ${detail.isCorrect ? "bg-green-500" : "bg-red-500"}`}
+                                                >
+                                                  {detail.isCorrect
+                                                    ? "Đúng"
+                                                    : "Sai"}
+                                                </span>
+                                                <span className="text-gray-600">
+                                                  Đã chọn:{" "}
+                                                  <span className="font-bold text-gray-800">
+                                                    {detail.userAnswerText}
+                                                  </span>
+                                                </span>
+                                                {!detail.isCorrect && (
+                                                  <span className="text-gray-600">
+                                                    (Đ/A Đùng:{" "}
+                                                    <span className="font-bold text-green-600">
+                                                      {detail.correctAnswerText}
+                                                    </span>
+                                                    )
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          ),
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                          </React.Fragment>
                         ))}
                       </tbody>
                     </table>

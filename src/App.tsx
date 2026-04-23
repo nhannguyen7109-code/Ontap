@@ -318,7 +318,18 @@ export default function App() {
     }
   }, [student]);
 
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => {
+    return localStorage.getItem("quiz_admin") === "true";
+  });
+
+  useEffect(() => {
+    if (isAdmin) {
+      localStorage.setItem("quiz_admin", "true");
+    } else {
+      localStorage.removeItem("quiz_admin");
+    }
+  }, [isAdmin]);
+
   const [loginMode, setLoginMode] = useState<"student" | "admin">("student");
   const [adminPassword, setAdminPassword] = useState("");
 
@@ -333,8 +344,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     return (
       initialState?.activeTab ||
-      (localStorage.getItem("quiz_student")
-        ? "select-subject"
+      (localStorage.getItem("quiz_admin") === "true"
+        ? "history"
         : "select-subject")
     );
   }); // 'select-subject', 'select-lesson', 'quiz', 'admin', 'history', 'leaderboard'
@@ -617,6 +628,7 @@ export default function App() {
     setIsAdmin(false);
     setActiveTab("select-subject");
     localStorage.removeItem("quiz_student");
+    localStorage.removeItem("quiz_admin");
     localStorage.removeItem("quiz_app_state");
     window.location.reload();
   };
@@ -740,7 +752,7 @@ export default function App() {
 
       // Push to Supabase
       try {
-        await supabase.from("quiz_history").insert([
+        const { error } = await supabase.from("quiz_history").insert([
           {
             student_name: student.name,
             class_name: student.className,
@@ -752,8 +764,12 @@ export default function App() {
             // date is auto-inserted in Supabase
           },
         ]);
-      } catch (err) {
+        if (error) {
+          throw new Error(error.message);
+        }
+      } catch (err: any) {
         console.error("Lỗi khi lưu lịch sử điểm", err);
+        alert("Có lỗi xảy ra khi lưu lịch sử bài làm lên hệ thống: " + (err?.message || "Vui lòng kiểm tra lại quyền Insert trên Supabase!"));
       }
     }
   };

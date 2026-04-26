@@ -28,6 +28,9 @@ import {
   Smile,
   Sparkles,
   Cloud,
+  Upload,
+  Image as ImageIcon,
+  Trash2,
 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -525,6 +528,11 @@ export default function App() {
     opt3: "",
     correctIndex: "0",
     shortAnswerText: "",
+    qImage: "",
+    opt0Image: "",
+    opt1Image: "",
+    opt2Image: "",
+    opt3Image: "",
   });
 
   // --- XỬ LÝ ĐĂNG NHẬP ---
@@ -852,6 +860,9 @@ export default function App() {
     e.preventDefault();
     let questionToSave: Question;
 
+    const buildStr = (txt: string, img: string) => img.trim() ? `${txt}||IMG||${img.trim()}` : txt;
+    const finalQText = buildStr(newQ.text, newQ.qImage);
+
     if (newQ.type === "short_answer") {
       if (!newQ.text || !newQ.shortAnswerText) {
         alert("Vui lòng điền đầy đủ câu hỏi và đáp án!");
@@ -862,7 +873,7 @@ export default function App() {
         subject: newQ.subject,
         grade: newQ.grade,
         lesson: newQ.lesson || undefined,
-        text: newQ.text,
+        text: finalQText,
         type: "short_answer",
         shortAnswers: newQ.shortAnswerText
           .split(",")
@@ -879,9 +890,14 @@ export default function App() {
         subject: newQ.subject,
         grade: newQ.grade,
         lesson: newQ.lesson || undefined,
-        text: newQ.text,
+        text: finalQText,
         type: "multiple_choice",
-        options: [newQ.opt0, newQ.opt1, newQ.opt2, newQ.opt3],
+        options: [
+          buildStr(newQ.opt0, newQ.opt0Image),
+          buildStr(newQ.opt1, newQ.opt1Image),
+          buildStr(newQ.opt2, newQ.opt2Image),
+          buildStr(newQ.opt3, newQ.opt3Image)
+        ],
         correctIndex: parseInt(newQ.correctIndex),
       };
     }
@@ -941,21 +957,57 @@ export default function App() {
       opt3: "",
       correctIndex: "0",
       shortAnswerText: "",
+      qImage: "",
+      opt0Image: "",
+      opt1Image: "",
+      opt2Image: "",
+      opt3Image: "",
     });
+  };
+
+  const handleImageUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: "qImage" | "opt0Image" | "opt1Image" | "opt2Image" | "opt3Image",
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Optional: check file size if needed, e.g. < 2MB
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Kích thước ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setNewQ((prev) => ({ ...prev, [field]: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleEditQuestion = (q: Question) => {
     setEditingQuestionId(q.id);
+    const qParts = q.text.split("||IMG||");
+    const opt0Parts = (q.options?.[0] || "").split("||IMG||");
+    const opt1Parts = (q.options?.[1] || "").split("||IMG||");
+    const opt2Parts = (q.options?.[2] || "").split("||IMG||");
+    const opt3Parts = (q.options?.[3] || "").split("||IMG||");
+
     setNewQ({
       subject: q.subject,
       grade: q.grade,
-      text: q.text,
+      text: qParts[0] || "",
+      qImage: qParts[1] || "",
       type: q.type || "multiple_choice",
       lesson: q.lesson || "",
-      opt0: q.options?.[0] || "",
-      opt1: q.options?.[1] || "",
-      opt2: q.options?.[2] || "",
-      opt3: q.options?.[3] || "",
+      opt0: opt0Parts[0] || "",
+      opt0Image: opt0Parts[1] || "",
+      opt1: opt1Parts[0] || "",
+      opt1Image: opt1Parts[1] || "",
+      opt2: opt2Parts[0] || "",
+      opt2Image: opt2Parts[1] || "",
+      opt3: opt3Parts[0] || "",
+      opt3Image: opt3Parts[1] || "",
       correctIndex: String(q.correctIndex || 0),
       shortAnswerText: q.shortAnswers?.join(", ") || "",
     });
@@ -972,7 +1024,34 @@ export default function App() {
       opt3: "",
       correctIndex: "0",
       shortAnswerText: "",
+      qImage: "",
+      opt0Image: "",
+      opt1Image: "",
+      opt2Image: "",
+      opt3Image: "",
     });
+  };
+
+  const handleDeleteQuestion = async (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    if (!window.confirm("Bạn có chắc chắn muốn xóa câu hỏi này không?")) {
+      return;
+    }
+    
+    try {
+      const { error } = await supabase.from("questions").delete().eq("id", id);
+      if (error) {
+        throw new Error(error.message);
+      }
+      setQuestions(questions.filter((q) => q.id !== id));
+      if (editingQuestionId === id) {
+        cancelEdit();
+      }
+      alert("Đã xóa câu hỏi thành công!");
+    } catch (err: any) {
+      console.error("Lỗi xóa câu hỏi:", err);
+      alert("Có lỗi khi xóa: " + (err?.message || "Vui lòng kiểm tra lại."));
+    }
   };
 
   // ================= RENDER =================
@@ -1377,15 +1456,22 @@ export default function App() {
                                               onClick={() =>
                                                 handleEditQuestion(q)
                                               }
-                                              className={`p-2 rounded shadow-sm border cursor-pointer transition-colors ${editingQuestionId === q.id ? "bg-purple-100 border-purple-300" : "bg-white border-gray-100 hover:bg-purple-50 hover:border-purple-200"}`}
+                                              className={`p-2 rounded shadow-sm border cursor-pointer transition-colors relative group/question ${editingQuestionId === q.id ? "bg-purple-100 border-purple-300" : "bg-white border-gray-100 hover:bg-purple-50 hover:border-purple-200"}`}
                                             >
                                               <p
-                                                className="text-gray-800 text-[11px] font-medium line-clamp-2"
+                                                className="text-gray-800 text-[11px] font-medium line-clamp-2 pr-6 break-words"
                                                 title={q.text}
                                               >
-                                                {q.text}
+                                                {q.text.split("||IMG||")[0]}
                                               </p>
-                                              <div className="mt-1 flex justify-end items-center gap-1">
+                                              <button
+                                                onClick={(e) => handleDeleteQuestion(e, q.id as number)}
+                                                className="absolute top-1 right-1 p-1 text-red-500 hover:bg-red-600 hover:text-white rounded bg-white shadow-sm border border-gray-200 opacity-0 group-hover/question:opacity-100 transition-opacity z-10"
+                                                title="Xóa câu hỏi"
+                                              >
+                                                <Trash2 size={12} />
+                                              </button>
+                                              <div className="mt-1 flex justify-end items-center gap-1 opacity-100 transition-opacity">
                                                 <span className="text-[9px] font-bold text-gray-400">
                                                   {q.type === "short_answer"
                                                     ? "Ngắn"
@@ -1883,9 +1969,18 @@ export default function App() {
                   </span>
                 </div>
 
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-800 mb-8 sm:mb-10 leading-tight">
-                  {currentQuestions[currentQIndex].text}
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-800 mb-4 sm:mb-6 leading-tight">
+                  {currentQuestions[currentQIndex].text.split("||IMG||")[0]}
                 </h2>
+                {currentQuestions[currentQIndex].text.includes("||IMG||") && (
+                  <div className="mb-8 flex justify-center">
+                    <img
+                      src={currentQuestions[currentQIndex].text.split("||IMG||")[1]}
+                      alt="Minh họa câu hỏi"
+                      className="max-w-full max-h-64 md:max-h-80 object-contain rounded-2xl shadow-sm border-2 border-gray-100"
+                    />
+                  </div>
+                )}
 
                 {/* Các viên cầu đáp án hoặc input trả lời ngắn */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 relative">
@@ -1963,12 +2058,21 @@ export default function App() {
                             onClick={() => handleAnswer(idx, opt.isCorrect)}
                             className={`text-white p-4 sm:p-6 rounded-3xl sm:rounded-[3rem] shadow-lg transition-all text-left flex items-center gap-3 sm:gap-4 group min-h-[80px] sm:min-h-[100px] border-b-4 border-black/20 active:border-b-0 ${btnStyle}`}
                           >
-                            <div className="bg-white/20 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-black text-xl sm:text-2xl group-hover:bg-white group-hover:text-black transition-colors flex-shrink-0">
+                            <div className="bg-white/20 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-black text-xl sm:text-2xl group-hover:bg-white group-hover:text-black transition-colors flex-shrink-0 mt-1">
                               {String.fromCharCode(65 + idx)}
                             </div>
-                            <span className="text-lg sm:text-xl md:text-2xl font-bold leading-tight drop-shadow-md">
-                              {opt.text}
-                            </span>
+                            <div className="flex flex-col gap-2 overflow-hidden w-full">
+                              <span className="text-lg sm:text-xl md:text-2xl font-bold leading-tight drop-shadow-md break-words">
+                                {opt.text.split("||IMG||")[0]}
+                              </span>
+                              {opt.text.includes("||IMG||") && (
+                                <img
+                                  src={opt.text.split("||IMG||")[1]}
+                                  alt={`Option ${String.fromCharCode(65 + idx)}`}
+                                  className="max-h-24 md:max-h-32 object-contain rounded-xl bg-white/10 p-1 mt-1 w-fit"
+                                />
+                              )}
+                            </div>
                           </button>
                         );
                       },
@@ -2089,9 +2193,26 @@ export default function App() {
                   <textarea
                     value={newQ.text}
                     onChange={(e) => setNewQ({ ...newQ, text: e.target.value })}
-                    className="w-full p-4 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none text-lg min-h-[100px]"
+                    className="w-full p-4 rounded-xl border-2 border-gray-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none text-lg min-h-[100px] mb-2"
                     placeholder="Nhập nội dung câu hỏi..."
                   />
+                  <div className="flex gap-2">
+                    <label className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 cursor-pointer px-4 py-2 rounded-xl border-2 border-gray-300 text-gray-700 font-medium transition-colors w-full">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleImageUpload(e, "qImage")}
+                      />
+                      <Upload size={18} className="mr-2" />
+                      Tải ảnh minh họa lên (Tùy chọn)
+                    </label>
+                  </div>
+                  {newQ.qImage && (
+                    <div className="mt-2">
+                      <img src={newQ.qImage} alt="Preview" className="max-h-32 object-contain rounded" />
+                    </div>
+                  )}
                 </div>
 
                 {newQ.type === "short_answer" ? (
@@ -2100,14 +2221,14 @@ export default function App() {
                       Đáp án (Các phương án đúng cách nhau bằng dấu phẩy)
                     </label>
                     <input
-                      type="text"
-                      value={newQ.shortAnswerText}
-                      onChange={(e) =>
-                        setNewQ({ ...newQ, shortAnswerText: e.target.value })
-                      }
-                      className="w-full p-4 rounded-xl border-2 border-gray-200 focus:border-purple-500 outline-none"
-                      placeholder="VD: Màn hình, man hinh, Man hinh"
-                    />
+                       type="text"
+                       value={newQ.shortAnswerText}
+                       onChange={(e) =>
+                         setNewQ({ ...newQ, shortAnswerText: e.target.value })
+                       }
+                       className="w-full p-4 rounded-xl border-2 border-gray-200 focus:border-purple-500 outline-none"
+                       placeholder="VD: Màn hình, man hinh, Man hinh"
+                     />
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -2117,27 +2238,46 @@ export default function App() {
                     {[0, 1, 2, 3].map((idx) => (
                       <div
                         key={idx}
-                        className="flex items-center gap-4 bg-gray-50 p-2 rounded-xl border-2 border-transparent focus-within:border-purple-200 transition-colors"
+                        className="flex flex-col bg-gray-50 p-3 rounded-xl border-2 border-transparent focus-within:border-purple-200 transition-colors"
                       >
-                        <input
-                          type="radio"
-                          name="correctOption"
-                          value={idx}
-                          checked={newQ.correctIndex === String(idx)}
-                          onChange={(e) =>
-                            setNewQ({ ...newQ, correctIndex: e.target.value })
-                          }
-                          className="w-6 h-6 text-purple-600 focus:ring-purple-500 cursor-pointer ml-2"
-                        />
-                        <input
-                          type="text"
-                          value={(newQ as any)[`opt${idx}`]}
-                          onChange={(e) =>
-                            setNewQ({ ...newQ, [`opt${idx}`]: e.target.value })
-                          }
-                          className="flex-1 p-3 rounded-lg border border-gray-300 focus:border-purple-500 outline-none"
-                          placeholder={`Đáp án ${String.fromCharCode(65 + idx)}...`}
-                        />
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="radio"
+                            name="correctOption"
+                            value={idx}
+                            checked={newQ.correctIndex === String(idx)}
+                            onChange={(e) =>
+                              setNewQ({ ...newQ, correctIndex: e.target.value })
+                            }
+                            className="w-6 h-6 text-purple-600 focus:ring-purple-500 cursor-pointer ml-2"
+                          />
+                          <input
+                            type="text"
+                            value={(newQ as any)[`opt${idx}`]}
+                            onChange={(e) =>
+                              setNewQ({ ...newQ, [`opt${idx}`]: e.target.value })
+                            }
+                            className="flex-1 p-3 rounded-lg border border-gray-300 focus:border-purple-500 outline-none"
+                            placeholder={`Đáp án ${String.fromCharCode(65 + idx)}...`}
+                          />
+                        </div>
+                        <div className="pl-12 mt-2">
+                          <div className="flex gap-2">
+                            <label className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 cursor-pointer px-3 py-2 w-full rounded text-sm border border-gray-300 text-gray-700 transition-colors">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handleImageUpload(e, `opt${idx}Image` as any)}
+                              />
+                              <Upload size={14} className="mr-2" />
+                              Tải ảnh lên cho đáp án (Tùy chọn)
+                            </label>
+                          </div>
+                          {(newQ as any)[`opt${idx}Image`] && (
+                            <img src={(newQ as any)[`opt${idx}Image`]} alt="Preview" className="h-16 mt-2 object-contain rounded" />
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2296,9 +2436,9 @@ export default function App() {
                                             >
                                               <p className="font-semibold text-gray-800 mb-1">
                                                 Câu {idx + 1}:{" "}
-                                                {detail.questionText}
+                                                {(detail.questionText || "").split("||IMG||")[0]}
                                               </p>
-                                              <div className="flex items-center gap-4 text-sm">
+                                              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm">
                                                 <span
                                                   className={`px-2 py-1 flex items-center justify-center font-bold rounded text-white ${detail.isCorrect ? "bg-green-500" : "bg-red-500"}`}
                                                 >
@@ -2306,19 +2446,19 @@ export default function App() {
                                                     ? "Đúng"
                                                     : "Sai"}
                                                 </span>
-                                                <span className="text-gray-600">
-                                                  Đã chọn:{" "}
-                                                  <span className="font-bold text-gray-800">
-                                                    {detail.userAnswerText}
+                                                <span className="text-gray-600 flex flex-wrap gap-1">
+                                                  <span>Đã chọn:</span>
+                                                  <span className="font-bold text-gray-800 break-words line-clamp-2 max-w-[200px]">
+                                                    {(detail.userAnswerText || "").split("||IMG||")[0]}
                                                   </span>
                                                 </span>
                                                 {!detail.isCorrect && (
-                                                  <span className="text-gray-600">
-                                                    (Đ/A Đùng:{" "}
-                                                    <span className="font-bold text-green-600">
-                                                      {detail.correctAnswerText}
+                                                  <span className="text-gray-600 flex flex-wrap gap-1">
+                                                    <span>(Đ/A Đùng:</span>
+                                                    <span className="font-bold text-green-600 break-words line-clamp-2 max-w-[200px]">
+                                                      {(detail.correctAnswerText || "").split("||IMG||")[0]}
                                                     </span>
-                                                    )
+                                                    <span>)</span>
                                                   </span>
                                                 )}
                                               </div>
